@@ -150,7 +150,11 @@ module ETH_TOP(
     output          TRIG_CLOCK,
     output          TRIGGER_H,
     output          TRIG_V,
-    output          TRIG_BLANK
+    output          TRIG_BLANK,
+    // DL5（v3）：飞秒激光同步采集模式新增 1 个外部异步输入。
+    //   2.5V TTL，50ns 高电平脉冲，典型 500KHz。
+    //   硬件引脚号待硬件确认；xdc 暂不约束（综合时会有 NSTD-1 warning，可接受）。
+    input           laser_sync_in
     );
     
 //------------------------------------------------------------------------------
@@ -211,6 +215,13 @@ module ETH_TOP(
     wire [31:0]     ultrafast_line_rec;
     wire [15:0]    sync_sig_delay1;
     wire [15:0]    sync_sig_delay2;
+    // DL5（v3）：6 个 laser 模式寄存器从 command_monitor_new 拉出来
+    wire            laser_mode_en;
+    wire [15:0]     blanker_delay_time;
+    wire [15:0]     blanker_time;
+    wire [15:0]     acq_data_delay_time;
+    wire [15:0]     acq_time;
+    wire [31:0]     laser_period;
 //******************************************
 //--------------------PLL-------------------
 //******************************************
@@ -551,8 +562,15 @@ command_monitor_new U4(
     .acq_dead_time      (acq_dead_time),
     .sync_sig_delay1        (sync_sig_delay1),
     .sync_sig_delay2        (sync_sig_delay2),
+    // DL5（v3）：6 个新寄存器
+    .laser_mode_en          (laser_mode_en),
+    .blanker_delay_time     (blanker_delay_time),
+    .blanker_time           (blanker_time),
+    .acq_data_delay_time    (acq_data_delay_time),
+    .acq_time               (acq_time),
+    .laser_period           (laser_period),
     .pc_ack_r           (pc_ack)
-    ); 
+    );
 //******************************************
 //-----------adc锟斤拷锟捷采硷拷锟较达拷----------------
 //******************************************  
@@ -671,12 +689,21 @@ dacdata_config U6(
     .clk_sel						( clk_sel),
     .TRIGGER_IN					(TRIGGER_IN),
 
+    // DL5（v3）：6 个 laser 模式寄存器 + 1 个外部异步输入
+    .laser_mode_en          (laser_mode_en),
+    .blanker_delay_time     (blanker_delay_time),
+    .blanker_time           (blanker_time),
+    .acq_data_delay_time    (acq_data_delay_time),
+    .acq_time               (acq_time),
+    .laser_period           (laser_period),
+    .laser_sync_in          (laser_sync_in),
+
     .sync_pixel_tri1    (sync_pixel_tri1),
-    .sync_pixel_tri2    (sync_pixel_tri2),       
-    .adc_tri            (adc_tri),  
+    .sync_pixel_tri2    (sync_pixel_tri2),
+    .adc_tri            (adc_tri),
     .DAX_DATA           (DAX_DATA),
-    .DAY_DATA           (DAY_DATA)   
-    );  
+    .DAY_DATA           (DAY_DATA)
+    );
     
 //******************************************
 //---------------multiboot------------------

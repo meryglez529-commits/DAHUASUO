@@ -110,41 +110,41 @@
           <Attr Name="UsedIn" Val="implementation"/>
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
-        <CompFileExtendedInfo CompFileName="system.bd" FileRelPathName="ip/system_proc_sys_reset_0_0/system_proc_sys_reset_0_0.xci">
-          <Proxy FileSetName="system_proc_sys_reset_0_0"/>
+        <CompFileExtendedInfo CompFileName="system.bd" FileRelPathName="ip/system_MSXBO_FDMA_0_1/system_MSXBO_FDMA_0_1.xci">
+          <Proxy FileSetName="system_MSXBO_FDMA_0_1"/>
         </CompFileExtendedInfo>
         <CompFileExtendedInfo CompFileName="system.bd" FileRelPathName="ip/system_m00_data_fifo_0/system_m00_data_fifo_0.xci">
           <Proxy FileSetName="system_m00_data_fifo_0"/>
         </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="system.bd" FileRelPathName="ip/system_s00_data_fifo_0/system_s00_data_fifo_0.xci">
-          <Proxy FileSetName="system_s00_data_fifo_0"/>
-        </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="system.bd" FileRelPathName="ip/system_xbar_0/system_xbar_0.xci">
-          <Proxy FileSetName="system_xbar_0"/>
-        </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="system.bd" FileRelPathName="ip/system_s00_regslice_0/system_s00_regslice_0.xci">
-          <Proxy FileSetName="system_s00_regslice_0"/>
+        <CompFileExtendedInfo CompFileName="system.bd" FileRelPathName="ip/system_s01_data_fifo_0/system_s01_data_fifo_0.xci">
+          <Proxy FileSetName="system_s01_data_fifo_0"/>
         </CompFileExtendedInfo>
         <CompFileExtendedInfo CompFileName="system.bd" FileRelPathName="ip/system_m00_regslice_0/system_m00_regslice_0.xci">
           <Proxy FileSetName="system_m00_regslice_0"/>
         </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="system.bd" FileRelPathName="ip/system_system_ila_0_0/system_system_ila_0_0.xci">
-          <Proxy FileSetName="system_system_ila_0_0"/>
-        </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="system.bd" FileRelPathName="ip/system_s01_data_fifo_0/system_s01_data_fifo_0.xci">
-          <Proxy FileSetName="system_s01_data_fifo_0"/>
-        </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="system.bd" FileRelPathName="ip/system_auto_us_0/system_auto_us_0.xci">
-          <Proxy FileSetName="system_auto_us_0"/>
+        <CompFileExtendedInfo CompFileName="system.bd" FileRelPathName="ip/system_mig_7series_0_3/system_mig_7series_0_3.xci">
+          <Proxy FileSetName="system_mig_7series_0_3"/>
         </CompFileExtendedInfo>
         <CompFileExtendedInfo CompFileName="system.bd" FileRelPathName="ip/system_s01_regslice_0/system_s01_regslice_0.xci">
           <Proxy FileSetName="system_s01_regslice_0"/>
         </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="system.bd" FileRelPathName="ip/system_mig_7series_0_3/system_mig_7series_0_3.xci">
-          <Proxy FileSetName="system_mig_7series_0_3"/>
+        <CompFileExtendedInfo CompFileName="system.bd" FileRelPathName="ip/system_system_ila_0_0/system_system_ila_0_0.xci">
+          <Proxy FileSetName="system_system_ila_0_0"/>
         </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="system.bd" FileRelPathName="ip/system_MSXBO_FDMA_0_1/system_MSXBO_FDMA_0_1.xci">
-          <Proxy FileSetName="system_MSXBO_FDMA_0_1"/>
+        <CompFileExtendedInfo CompFileName="system.bd" FileRelPathName="ip/system_s00_regslice_0/system_s00_regslice_0.xci">
+          <Proxy FileSetName="system_s00_regslice_0"/>
+        </CompFileExtendedInfo>
+        <CompFileExtendedInfo CompFileName="system.bd" FileRelPathName="ip/system_xbar_0/system_xbar_0.xci">
+          <Proxy FileSetName="system_xbar_0"/>
+        </CompFileExtendedInfo>
+        <CompFileExtendedInfo CompFileName="system.bd" FileRelPathName="ip/system_s00_data_fifo_0/system_s00_data_fifo_0.xci">
+          <Proxy FileSetName="system_s00_data_fifo_0"/>
+        </CompFileExtendedInfo>
+        <CompFileExtendedInfo CompFileName="system.bd" FileRelPathName="ip/system_auto_us_0/system_auto_us_0.xci">
+          <Proxy FileSetName="system_auto_us_0"/>
+        </CompFileExtendedInfo>
+        <CompFileExtendedInfo CompFileName="system.bd" FileRelPathName="ip/system_proc_sys_reset_0_0/system_proc_sys_reset_0_0.xci">
+          <Proxy FileSetName="system_proc_sys_reset_0_0"/>
         </CompFileExtendedInfo>
         <CompFileExtendedInfo CompFileName="system.bd" FileRelPathName="ip/system_MSXBO_FDMA_0_0/system_MSXBO_FDMA_0_0.xci">
           <Proxy FileSetName="system_MSXBO_FDMA_0_0"/>
@@ -523,6 +523,13 @@
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
+      <File Path="$PSRCDIR/sources_1/new/laser_sync_blanker_ctrl.v">
+        <FileInfo>
+          <Attr Name="UsedIn" Val="synthesis"/>
+          <Attr Name="UsedIn" Val="implementation"/>
+          <Attr Name="UsedIn" Val="simulation"/>
+        </FileInfo>
+      </File>
       <File Path="$PSRCDIR/sources_1/new/multiboot_cfg_new.v">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>
@@ -625,14 +632,6 @@
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PSRCDIR/sources_1/bd/system/ip/system_mig_7series_0_3/mig_a.prj">
-        <FileInfo>
-          <Attr Name="ImportPath" Val="$PSRCDIR/sources_1/bd/system/ip/system_mig_7series_0_3/mig_a.prj"/>
-          <Attr Name="ImportTime" Val="1640168395"/>
-          <Attr Name="UsedIn" Val="synthesis"/>
-          <Attr Name="ScopedToCell" Val="system_mig_7series_0_3"/>
-        </FileInfo>
-      </File>
       <Config>
         <Option Name="DesignMode" Val="RTL"/>
         <Option Name="TopModule" Val="ETH_TOP"/>
@@ -661,6 +660,14 @@
         </FileInfo>
       </File>
       <File Path="$PSRCDIR/sim_1/new/adc_acq_sim.v">
+        <FileInfo>
+          <Attr Name="AutoDisabled" Val="1"/>
+          <Attr Name="UsedIn" Val="synthesis"/>
+          <Attr Name="UsedIn" Val="implementation"/>
+          <Attr Name="UsedIn" Val="simulation"/>
+        </FileInfo>
+      </File>
+      <File Path="$PSRCDIR/sim_1/new/tb_laser_sync_blanker_ctrl.v">
         <FileInfo>
           <Attr Name="AutoDisabled" Val="1"/>
           <Attr Name="UsedIn" Val="synthesis"/>
@@ -1778,7 +1785,7 @@
       <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
       <RQSFiles/>
     </Run>
-    <Run Id="impl_1" Type="Ft2:EntireDesign" Part="xc7k325tffg676-2" ConstrsSet="constrs_1" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" State="current" Dir="$PRUNDIR/impl_1" SynthRun="synth_1" IncludeInArchive="true" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="E:/sgsc_prj/eth_1019_V1_no heart_325T_V3.13/fpga_prj/AXI_DDR.srcs/utils_1/imports/impl_1">
+    <Run Id="impl_1" Type="Ft2:EntireDesign" Part="xc7k325tffg676-2" ConstrsSet="constrs_1" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" State="current" SynthRun="synth_1" IncludeInArchive="true" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="E:/sgsc_prj/eth_1019_V1_no heart_325T_V3.13/fpga_prj/AXI_DDR.srcs/utils_1/imports/impl_1">
       <Strategy Version="1" Minor="2">
         <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2017"/>
         <Step Id="init_design"/>
@@ -1793,7 +1800,6 @@
           <Option Id="BinFile">1</Option>
         </Step>
       </Strategy>
-      <GeneratedRun Dir="$PRUNDIR" File="gen_run.xml"/>
       <ReportStrategy Name="Vivado Implementation Default Reports" Flow="Vivado Implementation 2017"/>
       <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
       <RQSFiles/>

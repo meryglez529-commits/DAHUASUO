@@ -30,6 +30,21 @@
 **新功能需求**：来自客户大化所的飞秒激光器联用方案，详见 [AXI_DDR.srcs/大化所新方案设计.md](../../AXI_DDR.srcs/大化所新方案设计.md)。
 核心：FPGA 从 master 变 slave，由外部 Laser Sync 脉冲触发"blanker → adc_tri"两段时序事件，每个激光脉冲对应一个像素。
 
+**实现状态（2026-05-22 17:24）**：RTL 全部落地、综合 PASS、单元 sim 8/8 PASS、未上板。
+
+| 步骤 | 状态 | 证据 |
+|---|---|---|
+| 1. 新增 `laser_sync_blanker_ctrl.v` + tb | ✅ | `AI-work/sim_out/dl5_unit_xsim.log`，8/8 用例 PASS |
+| 2. `parameter_dacdata_gen.v` State 3 laser 分支 | ✅ | xvlog 过 |
+| 3. `dac_output.v` 3 个 mux + ui_clk→dac_dco 同步 | ✅ | xvlog 过 |
+| 4. `dacdata_config.v` 例化 + 5 个 CDC | ✅ | xvlog 过 |
+| 5. `command_monitor_new.v` 6 个寄存器（0x0205~0x020A） | ✅ | xvlog 过 |
+| 6. `ETH_TOP.v` 加 `laser_sync_in` 输入 | ✅ | xvlog 过 |
+| 7. 集成 sim | ⏭ 跳过（综合等价验证接线） | — |
+| 8. 综合 | ✅ | `AI-work/sim_out/run_synth.log`，BUILD PASS，0 ERROR / 0 CRITICAL WARNING |
+| 9. xdc 引脚约束 | ⏳ 待硬件给 `laser_sync_in` 引脚号 | — |
+| 10. 上板验证 | ⏳ 由用户执行 | — |
+
 **架构设计 v3**：[AI-work/guide/data-paths/DL5_LASER_SYNC_MODE_DESIGN.md](../guide/data-paths/DL5_LASER_SYNC_MODE_DESIGN.md)
 - 新增 `laser_sync_blanker_ctrl.v` 独立模块（**ui_clk** 域，200MHz，来自 MIG），3 态并行状态机
 - 6 个新寄存器（地址 0x0205~0x020A）：laser_mode_en / blanker_delay_time / blanker_time / acq_data_delay_time（与 0x0201 adc_acq_delay 不同）/ acq_time / laser_period

@@ -62,6 +62,14 @@ module parameter_dacdata_gen(
     input           ultrafast_mode,   // 1=线首恢复时间改用 ultrafast_line_rec，sync 输出由后级放行。
     input   [31:0]  ultrafast_line_rec,
 
+    // DL5 飞秒激光同步采集模式（v3）
+    //   laser_mode_en=1 时，State 3 不再倒数 dac_sample 拍，
+    //   而是只写 1 个 FIFO word（让 DAC 切到当前像素电平），
+    //   然后停 wr_en 等 pixel_done_pulse（一个完整激光周期结束）才进 State 4。
+    //   旧模式（laser_mode_en=0）行为完全保持不变。
+    input           laser_mode_en,
+    input           pixel_done_pulse, // 来自 laser_sync_blanker_ctrl，已经在 dacdata_config 内 CDC 到 eth_clk 的单拍脉冲
+
     // 历史保留端口：本模块当前不驱动这两个信号，超快行号实际由 adcdata_acq 生成并回传。
     output reg [15:0]line_count,
     output reg       line_count_en,
@@ -191,6 +199,11 @@ reg [15:0]  step_count;
 reg [31:0]  dax_fall_cnt;
 reg [35:0]  dacx_tb_point;
 
+// DL5（v3）：State 3 在 laser 模式下需要一个 one-shot 标志，
+// 标记"本像素的 FIFO word 是否已经写过"。每像素只写 1 次，
+// 写过后停 wr_en，DAC 自保持电平到激光周期结束。
+reg         laser_pixel_written;
+
 //------------------------------------------------------------------------------
 // 4. 主状态机：把一帧扫描拆成“线首等待 -> 像素采样 -> 线尾回扫 -> 换线/换帧”
 //
@@ -211,32 +224,33 @@ reg [35:0]  dacx_tb_point;
 //------------------------------------------------------------------------------
 always@(posedge ui_clk or negedge rstn)
 begin
-    if(!rstn) begin 
-        current_state       <= 0; 
-        
+    if(!rstn) begin
+        current_state       <= 0;
+
         dacx_tb_point_cnt   <= 36'd0;
         dac_sample_cnt      <= 0;
-        dacx_tk_point_cnt   <= 16'd0; 
+        dacx_tk_point_cnt   <= 16'd0;
         row_repeat_cnt      <= 16'd0;
         image_row_cnt       <= 16'd0;
-        frame_waiting_cnt   <= 32'd0; 
-         
+        frame_waiting_cnt   <= 32'd0;
+
         para_config_wr_en   <= 1'b0;
         sync_pixel_tri1      <= 1'b0;
         sync_pixel_tri2      <= 1'b0;
         adc_tri             <= 1'b0;
         dax_level           <= 64'h8000_0000_0000_0000;
         day_level           <= 64'h8000_0000_0000_0000;
-        DAX_DATA            <= 16'h8000; 
-        DAY_DATA            <= 16'h8000;    
-        
+        DAX_DATA            <= 16'h8000;
+        DAY_DATA            <= 16'h8000;
+
         row_n_cnt           <= 0;
         step_cnt            <= 0;
         cycle_cnt           <= 0;
         remain_cnt          <= 0;
         step_count          <= 0;
-        
+
         dax_fall_cnt        <= 0;
+        laser_pixel_written <= 1'b0;       // DL5
     end
     else
         case (current_state)
@@ -320,37 +334,74 @@ begin
 
         // State 3: 一个像素点的有效采样窗口。
         //
-        // 对同一个 (x_idx,line_idx) 像素，连续写 dac_sample 个 FIFO word：
-        //   DAX/DAY 保持不变；
-        //   adc_tri=1，告诉 DL2 在稳定电平期间做平均采样；
-        //   sync1/sync2 只在窗口前 sync*_pixel_tri_wigth 拍为 1。
-        // 写满 dac_sample 拍后再到 State 4 更新 x_idx 对应的 DAX 坐标。
+        // 旧模式（laser_mode_en=0）：
+        //   对同一个 (x_idx,line_idx) 像素，连续写 dac_sample 个 FIFO word：
+        //     DAX/DAY 保持不变；
+        //     adc_tri=1，告诉 DL2 在稳定电平期间做平均采样；
+        //     sync1/sync2 只在窗口前 sync*_pixel_tri_wigth 拍为 1。
+        //   写满 dac_sample 拍后再到 State 4 更新 x_idx 对应的 DAX 坐标。
+        //
+        // 新模式（laser_mode_en=1, DL5 飞秒激光同步采集）：
+        //   每个像素只写 1 个 FIFO word（一次性切电平），然后停 wr_en，
+        //   DAC 在 dac_output 侧自保持当前 DAX/DAY；等 pixel_done_pulse
+        //   （由 laser_sync_blanker_ctrl 在一个完整激光周期结束时给出）
+        //   进 State 4。这种模式下 adc_tri / sync1 / sync2 都不再由
+        //   parameter_dacdata_gen 驱动，最终的 adc_tri / blanker / sync2
+        //   都由 dac_output 内的 mux 从 laser_sync_blanker_ctrl 取。
         3:                                                      //one Tk point
         begin
-            if(para_config_prog_full==0 && para_config_wr_rst_busy==0) begin
-                para_config_wr_en       <= 1'b1;     
-                adc_tri                 <= 1'b1;
+            if(laser_mode_en) begin
+                // === DL5 新模式分支 ===
+                sync_pixel_tri1          <= 1'b0;
+                sync_pixel_tri2          <= 1'b0;
+                adc_tri                 <= 1'b0;        // FIFO[32] 在 laser 模式被 dac_output mux 丢弃
                 DAX_DATA                <= dax_level[63:48];
                 DAY_DATA                <= day_level[63:48];
-                if(dac_sample_cnt < dac_sample - 1) begin
-                    dac_sample_cnt      <= dac_sample_cnt+1'b1; 
-                    current_state       <= 3;
+                if(!laser_pixel_written) begin
+                    // 第一次进 State 3：写 1 个 FIFO word 让 DAC 切到本像素电平
+                    if(para_config_prog_full==0 && para_config_wr_rst_busy==0) begin
+                        para_config_wr_en       <= 1'b1;
+                        laser_pixel_written     <= 1'b1;
+                    end
+                    else
+                        para_config_wr_en       <= 1'b0;    // FIFO 满，原地等
                 end
                 else begin
-                    dac_sample_cnt      <= 0;
-                    current_state       <= 4;
+                    // 本像素已写过 1 word：停 wr_en 等激光周期结束
+                    para_config_wr_en       <= 1'b0;
+                    if(pixel_done_pulse) begin
+                        laser_pixel_written <= 1'b0;        // 清标志，下一个像素再用
+                        current_state       <= 4;
+                    end
                 end
-                if(dac_sample_cnt < sync1_pixel_tri_wigth - 1)
-                    sync_pixel_tri1          <= 1'b1;
-                else
-                    sync_pixel_tri1          <= 1'b0;
-                if(dac_sample_cnt < sync2_pixel_tri_wigth - 1)
-                    sync_pixel_tri2          <= 1'b1;
-                else
-                    sync_pixel_tri2          <= 1'b0;
             end
-            else
-                para_config_wr_en       <= 1'b0;  
+            else begin
+                // === 旧模式分支（与原代码完全一致，保证回归）===
+                if(para_config_prog_full==0 && para_config_wr_rst_busy==0) begin
+                    para_config_wr_en       <= 1'b1;
+                    adc_tri                 <= 1'b1;
+                    DAX_DATA                <= dax_level[63:48];
+                    DAY_DATA                <= day_level[63:48];
+                    if(dac_sample_cnt < dac_sample - 1) begin
+                        dac_sample_cnt      <= dac_sample_cnt+1'b1;
+                        current_state       <= 3;
+                    end
+                    else begin
+                        dac_sample_cnt      <= 0;
+                        current_state       <= 4;
+                    end
+                    if(dac_sample_cnt < sync1_pixel_tri_wigth - 1)
+                        sync_pixel_tri1          <= 1'b1;
+                    else
+                        sync_pixel_tri1          <= 1'b0;
+                    if(dac_sample_cnt < sync2_pixel_tri_wigth - 1)
+                        sync_pixel_tri2          <= 1'b1;
+                    else
+                        sync_pixel_tri2          <= 1'b0;
+                end
+                else
+                    para_config_wr_en       <= 1'b0;
+            end
         end
 
         // State 4: 同一条扫描线内部的 X 坐标步进。
@@ -546,31 +597,32 @@ begin
         // 兜底分支：如果状态寄存器异常，回到和复位近似的安全中点电平。
         default:
         begin
-            current_state       <= 0; 
-            
+            current_state       <= 0;
+
             dacx_tb_point_cnt   <= 32'd0;
             dac_sample_cnt      <= 32'd0;
-            dacx_tk_point_cnt   <= 16'd0; 
+            dacx_tk_point_cnt   <= 16'd0;
             row_repeat_cnt      <= 16'd0;
             image_row_cnt       <= 16'd0;
-            frame_waiting_cnt   <= 32'd0; 
-             
+            frame_waiting_cnt   <= 32'd0;
+
             para_config_wr_en   <= 1'b0;
             adc_tri             <= 1'b0;
             sync_pixel_tri1          <= 1'b0;
             sync_pixel_tri2          <= 1'b0;
             dax_level           <= 64'h8000_0000_0000_0000;
-            day_level           <= 64'h8000_0000_0000_0000; 
-            DAX_DATA            <= 16'h8000; 
-            DAY_DATA            <= 16'h8000;    
-            
+            day_level           <= 64'h8000_0000_0000_0000;
+            DAX_DATA            <= 16'h8000;
+            DAY_DATA            <= 16'h8000;
+
             row_n_cnt           <= 0;
             step_cnt            <= 0;
             cycle_cnt           <= 0;
-            remain_cnt          <= 0;  
+            remain_cnt          <= 0;
             step_count          <= 0;
-            
+
             dax_fall_cnt        <= 0;
+            laser_pixel_written <= 1'b0;
         end
         endcase   
 end   

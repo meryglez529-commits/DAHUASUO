@@ -36,19 +36,31 @@
     input       [15:0]  sync_sig_delay1,         // sync1 在 ui_clk 域的额外延时。
     input       [15:0]  sync_sig_delay2,         // sync2 在 ui_clk 域的额外延时。
 
+    // DL5（v3）：飞秒激光同步采集模式新增输入。
+    //   laser_mode_en  : 1=启用激光模式，把 adc_tri / sync1 / sync2 切到 laser 源
+    //   blanker_pulse  : ui_clk 域 blanker 窗口信号（高有效，本模块末级取反送 TRIG_BLANK 引脚）
+    //   laser_acq_pulse: ui_clk 域 acq 窗口信号（高有效，本模块同步到 dac_dco 后覆盖 adc_tri）
+    //   laser_event_busy: ui_clk 域 BUSY 标志（高有效，本模块直接送 sync2 = TRIGGER_OUT）
+    // 这 4 个信号已由上层 dacdata_config 做了 eth_clk/ui_clk 域同步，本模块只对
+    // laser_mode_en 和 laser_acq_pulse 再做一次 ui_clk -> dac_dco 同步给 adc_tri mux 用。
+    input               laser_mode_en,
+    input               blanker_pulse,
+    input               laser_acq_pulse,
+    input               laser_event_busy,
+
     // 拆包后的业务输出。
     output reg [15:0]   DAX_DATA,                // 本模块输出的逻辑 DAC X 码值；顶层会再做 65535-DAX_DATA。
     output reg [15:0]   DAY_DATA,                // 本模块输出的逻辑 DAC Y 码值；顶层会再做 65535-DAY_DATA。
     output reg          adc_tri,                 // ADC 有效采样窗口，高电平期间 ADC 链路采集/平均当前 DAC 点。
     output reg          sync_pixel_tri1,         // 外部同步/blank 信号 1，最终低有效：这里会输出 ~sync_pixel_tri1_reg。
     output              sync_pixel_tri2,         // 外部同步/触发信号 2，高有效，顶层接到 TRIGGER_OUT。
-    
+
     // 上游写入的 35-bit 扫描 word，以及返回给上游的 FIFO 写侧流控。
     input               para_config_wr_en,
     input       [34:0]  para_config_data,
     output              para_config_prog_full,
     output              para_config_wr_rst_busy
-    );      
+    );
 
 //------------------------------------------------------------------------------
 // 1. 时钟进入和控制信号同步
@@ -89,7 +101,31 @@ begin
         ultrafast_mode_r0 <= ultrafast_mode;
         ultrafast_mode_r1 <= ultrafast_mode_r0;
     end
-end 
+end
+
+// DL5（v3）：laser_mode_en 和 laser_acq_pulse 用于 dac_dco 域的 adc_tri mux，
+// 需要再做一次 ui_clk -> dac_dco 双 FF 同步（参考 ultrafast_mode 的现有模式）。
+// blanker_pulse 和 laser_event_busy 都在 ui_clk 域的输出路径上使用，
+// 不需要在这里再同步到 dac_dco。
+reg laser_mode_en_dac_r0;
+reg laser_mode_en_dac_r1;
+reg laser_acq_pulse_dac_r0;
+reg laser_acq_pulse_dac_r1;
+always@(posedge dac_dco_bufg or negedge dac_rstn)
+begin
+    if(~dac_rstn) begin
+        laser_mode_en_dac_r0   <= 1'b0;
+        laser_mode_en_dac_r1   <= 1'b0;
+        laser_acq_pulse_dac_r0 <= 1'b0;
+        laser_acq_pulse_dac_r1 <= 1'b0;
+    end
+    else begin
+        laser_mode_en_dac_r0   <= laser_mode_en;
+        laser_mode_en_dac_r1   <= laser_mode_en_dac_r0;
+        laser_acq_pulse_dac_r0 <= laser_acq_pulse;
+        laser_acq_pulse_dac_r1 <= laser_acq_pulse_dac_r0;
+    end
+end
 
 //------------------------------------------------------------------------------
 // 2. 35-bit 异步 FIFO：eth_clk -> dac_dco
@@ -203,19 +239,31 @@ begin
         scan_state_r0       <= scan_state;
         scan_state_r1       <= scan_state_r0;
         if(para_config_rd_en_r) begin
-            sync1_pixel_tri      <= (scan_state_r1 && ultrafast_mode_r1) ? para_config_dout[33] : 1'b0;            
+            sync1_pixel_tri      <= (scan_state_r1 && ultrafast_mode_r1) ? para_config_dout[33] : 1'b0;
             sync2_pixel_tri      <= (scan_state_r1 && ultrafast_mode_r1) ? para_config_dout[34] : 1'b0;
-            adc_tri             <= (scan_state_r1) ? para_config_dout[32] : 1'b0;
+            // DL5（v3）：laser 模式下 adc_tri 由 laser_acq_pulse 覆盖；
+            //   旧模式（laser_mode_en=0）下保持原行为 = FIFO[32]。
+            //   scan_state=0 时仍然强制拉低（兼容现有"停扫时 ADC 触发屏蔽"语义）。
+            if(laser_mode_en_dac_r1)
+                adc_tri         <= scan_state_r1 ? laser_acq_pulse_dac_r1 : 1'b0;
+            else
+                adc_tri         <= scan_state_r1 ? para_config_dout[32]   : 1'b0;
             DAX_DATA            <= para_config_dout[31:16];
             DAY_DATA            <= para_config_dout[15:0];
-        end           
+        end
         else begin
-            adc_tri             <= 1'b0;
+            // DL5（v3）：laser 模式下虽然 wr_en/rd_en 都很稀疏（每像素只读 1 word），
+            //   但 adc_tri 必须在 BUSY 期间持续随 laser_acq_pulse 输出，
+            //   所以这里 laser 模式分支不再把 adc_tri 强行清 0。
+            if(laser_mode_en_dac_r1)
+                adc_tri         <= scan_state_r1 ? laser_acq_pulse_dac_r1 : 1'b0;
+            else
+                adc_tri         <= 1'b0;
             sync1_pixel_tri      <= 1'b0;
             sync2_pixel_tri      <= 1'b0;
             DAX_DATA            <= DAX_DATA;
             DAY_DATA            <= DAY_DATA;
-        end      
+        end
     end
 end
 
@@ -328,13 +376,21 @@ always@(posedge ui_clk or negedge ui_rstn)
 
 
 
+// DL5（v3）：sync1 末级输出
+//   - 旧 ultrafast 模式：取反 sync_pixel_tri1_reg（原状态机产生的高有效内部脉冲）
+//   - 新 laser 模式：取反 blanker_pulse（来自 laser_sync_blanker_ctrl 的高有效内部脉冲）
+//   两路源在 mux 后走同一条 ~ 取反路径，保证物理引脚 TRIG_BLANK 极性始终低有效。
+//   两个模式互斥（laser_mode_en 与 ultrafast_mode 不应同时为 1，由上位机保证）。
+wire        sync_pixel_tri1_src;
+assign      sync_pixel_tri1_src = laser_mode_en ? blanker_pulse : sync_pixel_tri1_reg;
+
 always@(posedge ui_clk or negedge ui_rstn)
  if(!ui_rstn)
     sync_pixel_tri1 <= 1'b0;
- else if(ultrafast_mode_r1)
-    sync_pixel_tri1 <=  (~sync_pixel_tri1_reg);
+ else if(laser_mode_en || ultrafast_mode_r1)
+    sync_pixel_tri1 <= (~sync_pixel_tri1_src);
  else
-    sync_pixel_tri1 <= 1'b0; 
+    sync_pixel_tri1 <= 1'b0;
 
 // ILA 调试：观察 sync1 原始输入、宽度、状态机、计数器和最终外部输出。
 ila_1 sync1_test (
@@ -429,7 +485,10 @@ always@(posedge ui_clk or negedge ui_rstn)
                         sync_sig_delay2_cnt <= 32'd0;
        end
         endcase
-assign sync_pixel_tri2 = sync_pixel_tri2_reg;
+// DL5（v3）：sync2 输出 mux
+//   - 旧模式：sync_pixel_tri2_reg（ui_clk 状态机产生的高有效脉冲）
+//   - laser 模式：laser_event_busy（整个激光事件期间为高，TRIGGER_OUT 物理引脚高有效）
+assign sync_pixel_tri2 = laser_mode_en ? laser_event_busy : sync_pixel_tri2_reg;
 
 // ILA 调试：观察 sync2 原始输入、宽度、状态机、计数器和最终外部输出。
 ila_1 sync2_test (
