@@ -1,0 +1,336 @@
+#-----------------------------------------------------------
+# Vivado v2017.4 (64-bit)
+# SW Build 2086221 on Fri Dec 15 20:55:39 MST 2017
+# IP Build 2085800 on Fri Dec 15 22:25:07 MST 2017
+# Start of session at: Fri Mar 29 16:22:51 2019
+# Process ID: 38076
+# Current directory: f:/MA703/A703_100T/07/AXI_DDR_5640/user_src/MSXBO_OVSensorRGB565_1.0/prj/msxbo_ovsensorrgb565_v1_0_project/MSXBO_OVSensorRGB565_v1_0_project.runs/synth_1
+# Command line: vivado.exe -log MSXBO_OVSensorRGB565.vds -product Vivado -mode batch -messageDb vivado.pb -notrace -source MSXBO_OVSensorRGB565.tcl
+# Log file: f:/MA703/A703_100T/07/AXI_DDR_5640/user_src/MSXBO_OVSensorRGB565_1.0/prj/msxbo_ovsensorrgb565_v1_0_project/MSXBO_OVSensorRGB565_v1_0_project.runs/synth_1/MSXBO_OVSensorRGB565.vds
+# Journal file: f:/MA703/A703_100T/07/AXI_DDR_5640/user_src/MSXBO_OVSensorRGB565_1.0/prj/msxbo_ovsensorrgb565_v1_0_project/MSXBO_OVSensorRGB565_v1_0_project.runs/synth_1\vivado.jou
+#-----------------------------------------------------------
+source MSXBO_OVSensorRGB565.tcl -notrace
+Command: synth_design -top MSXBO_OVSensorRGB565 -part xc7a100tfgg484-2
+Starting synth_design
+Attempting to get a license for feature 'Synthesis' and/or device 'xc7a100t'
+INFO: [Common 17-349] Got license for feature 'Synthesis' and/or device 'xc7a100t'
+INFO: Launching helper process for spawning children vivado processes
+INFO: Helper process launched with PID 38140 
+---------------------------------------------------------------------------------
+Starting Synthesize : Time (s): cpu = 00:00:05 ; elapsed = 00:00:05 . Memory (MB): peak = 363.672 ; gain = 98.535
+---------------------------------------------------------------------------------
+INFO: [Synth 8-638] synthesizing module 'MSXBO_OVSensorRGB565' [f:/MA703/A703_100T/07/AXI_DDR_5640/user_src/MSXBO_OVSensorRGB565_1.0/IPSRC/MSXBO_OVSensorRGB565.v:17]
+	Parameter CMOS_FRAME_WAITCNT bound to: 4'b1111 
+WARNING: [Synth 8-6014] Unused sequential element cmos_data_r_reg was removed.  [f:/MA703/A703_100T/07/AXI_DDR_5640/user_src/MSXBO_OVSensorRGB565_1.0/IPSRC/MSXBO_OVSensorRGB565.v:40]
+WARNING: [Synth 8-6014] Unused sequential element rgb2_reg was removed.  [f:/MA703/A703_100T/07/AXI_DDR_5640/user_src/MSXBO_OVSensorRGB565_1.0/IPSRC/MSXBO_OVSensorRGB565.v:110]
+WARNING: [Synth 8-6014] Unused sequential element de_r_reg was removed.  [f:/MA703/A703_100T/07/AXI_DDR_5640/user_src/MSXBO_OVSensorRGB565_1.0/IPSRC/MSXBO_OVSensorRGB565.v:111]
+WARNING: [Synth 8-6014] Unused sequential element grid_data_1_reg was removed.  [f:/MA703/A703_100T/07/AXI_DDR_5640/user_src/MSXBO_OVSensorRGB565_1.0/IPSRC/MSXBO_OVSensorRGB565.v:153]
+WARNING: [Synth 8-3936] Found unconnected internal register 'href_d_reg' and it is trimmed from '2' to '1' bits. [f:/MA703/A703_100T/07/AXI_DDR_5640/user_src/MSXBO_OVSensorRGB565_1.0/IPSRC/MSXBO_OVSensorRGB565.v:59]
+INFO: [Synth 8-256] done synthesizing module 'MSXBO_OVSensorRGB565' (1#1) [f:/MA703/A703_100T/07/AXI_DDR_5640/user_src/MSXBO_OVSensorRGB565_1.0/IPSRC/MSXBO_OVSensorRGB565.v:17]
+WARNING: [Synth 8-3917] design MSXBO_OVSensorRGB565 has port rgb_o[31] driven by constant 0
+WARNING: [Synth 8-3917] design MSXBO_OVSensorRGB565 has port rgb_o[30] driven by constant 0
+WARNING: [Synth 8-3917] design MSXBO_OVSensorRGB565 has port rgb_o[29] driven by constant 0
+WARNING: [Synth 8-3917] design MSXBO_OVSensorRGB565 has port rgb_o[28] driven by constant 0
+WARNING: [Synth 8-3917] design MSXBO_OVSensorRGB565 has port rgb_o[27] driven by constant 0
+WARNING: [Synth 8-3917] design MSXBO_OVSensorRGB565 has port rgb_o[26] driven by constant 0
+WARNING: [Synth 8-3917] design MSXBO_OVSensorRGB565 has port rgb_o[25] driven by constant 0
+WARNING: [Synth 8-3917] design MSXBO_OVSensorRGB565 has port rgb_o[24] driven by constant 0
+WARNING: [Synth 8-3331] design MSXBO_OVSensorRGB565 has unconnected port cmos_data_i[7]
+WARNING: [Synth 8-3331] design MSXBO_OVSensorRGB565 has unconnected port cmos_data_i[6]
+WARNING: [Synth 8-3331] design MSXBO_OVSensorRGB565 has unconnected port cmos_data_i[5]
+WARNING: [Synth 8-3331] design MSXBO_OVSensorRGB565 has unconnected port cmos_data_i[4]
+WARNING: [Synth 8-3331] design MSXBO_OVSensorRGB565 has unconnected port cmos_data_i[3]
+WARNING: [Synth 8-3331] design MSXBO_OVSensorRGB565 has unconnected port cmos_data_i[2]
+WARNING: [Synth 8-3331] design MSXBO_OVSensorRGB565 has unconnected port cmos_data_i[1]
+WARNING: [Synth 8-3331] design MSXBO_OVSensorRGB565 has unconnected port cmos_data_i[0]
+---------------------------------------------------------------------------------
+Finished Synthesize : Time (s): cpu = 00:00:06 ; elapsed = 00:00:06 . Memory (MB): peak = 415.625 ; gain = 150.488
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Constraint Validation : Time (s): cpu = 00:00:06 ; elapsed = 00:00:06 . Memory (MB): peak = 415.625 ; gain = 150.488
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Loading Part and Timing Information
+---------------------------------------------------------------------------------
+Loading part: xc7a100tfgg484-2
+---------------------------------------------------------------------------------
+Finished Loading Part and Timing Information : Time (s): cpu = 00:00:06 ; elapsed = 00:00:06 . Memory (MB): peak = 415.625 ; gain = 150.488
+---------------------------------------------------------------------------------
+INFO: [Device 21-403] Loading part xc7a100tfgg484-2
+WARNING: [Synth 8-6014] Unused sequential element vcnt_reg was removed.  [f:/MA703/A703_100T/07/AXI_DDR_5640/user_src/MSXBO_OVSensorRGB565_1.0/IPSRC/MSXBO_OVSensorRGB565.v:130]
+WARNING: [Synth 8-6014] Unused sequential element hcounter_reg was removed.  [f:/MA703/A703_100T/07/AXI_DDR_5640/user_src/MSXBO_OVSensorRGB565_1.0/IPSRC/MSXBO_OVSensorRGB565.v:143]
+---------------------------------------------------------------------------------
+Finished RTL Optimization Phase 2 : Time (s): cpu = 00:00:06 ; elapsed = 00:00:06 . Memory (MB): peak = 415.625 ; gain = 150.488
+---------------------------------------------------------------------------------
+
+Report RTL Partitions: 
++-+--------------+------------+----------+
+| |RTL Partition |Replication |Instances |
++-+--------------+------------+----------+
++-+--------------+------------+----------+
+No constraint files found.
+---------------------------------------------------------------------------------
+Start RTL Component Statistics 
+---------------------------------------------------------------------------------
+Detailed RTL Component Info : 
++---Adders : 
+	   2 Input     12 Bit       Adders := 1     
+	   2 Input      7 Bit       Adders := 1     
+	   2 Input      1 Bit       Adders := 1     
++---XORs : 
+	   2 Input      1 Bit         XORs := 1     
++---Registers : 
+	               12 Bit    Registers := 1     
+	                8 Bit    Registers := 1     
+	                7 Bit    Registers := 1     
+	                5 Bit    Registers := 1     
+	                2 Bit    Registers := 1     
+	                1 Bit    Registers := 6     
++---Muxes : 
+	   2 Input     12 Bit        Muxes := 2     
+	   4 Input      7 Bit        Muxes := 1     
+	   2 Input      4 Bit        Muxes := 2     
+	   2 Input      1 Bit        Muxes := 3     
+---------------------------------------------------------------------------------
+Finished RTL Component Statistics 
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start RTL Hierarchical Component Statistics 
+---------------------------------------------------------------------------------
+Hierarchical RTL Component report 
+Module MSXBO_OVSensorRGB565 
+Detailed RTL Component Info : 
++---Adders : 
+	   2 Input     12 Bit       Adders := 1     
+	   2 Input      7 Bit       Adders := 1     
+	   2 Input      1 Bit       Adders := 1     
++---XORs : 
+	   2 Input      1 Bit         XORs := 1     
++---Registers : 
+	               12 Bit    Registers := 1     
+	                8 Bit    Registers := 1     
+	                7 Bit    Registers := 1     
+	                5 Bit    Registers := 1     
+	                2 Bit    Registers := 1     
+	                1 Bit    Registers := 6     
++---Muxes : 
+	   2 Input     12 Bit        Muxes := 2     
+	   4 Input      7 Bit        Muxes := 1     
+	   2 Input      4 Bit        Muxes := 2     
+	   2 Input      1 Bit        Muxes := 3     
+---------------------------------------------------------------------------------
+Finished RTL Hierarchical Component Statistics
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Part Resource Summary
+---------------------------------------------------------------------------------
+Part Resources:
+DSPs: 240 (col length:80)
+BRAMs: 270 (col length: RAMB18 80 RAMB36 40)
+---------------------------------------------------------------------------------
+Finished Part Resource Summary
+---------------------------------------------------------------------------------
+No constraint files found.
+---------------------------------------------------------------------------------
+Start Cross Boundary and Area Optimization
+---------------------------------------------------------------------------------
+WARNING: [Synth 8-6014] Unused sequential element vcnt_reg was removed.  [f:/MA703/A703_100T/07/AXI_DDR_5640/user_src/MSXBO_OVSensorRGB565_1.0/IPSRC/MSXBO_OVSensorRGB565.v:130]
+WARNING: [Synth 8-6014] Unused sequential element hcounter_reg was removed.  [f:/MA703/A703_100T/07/AXI_DDR_5640/user_src/MSXBO_OVSensorRGB565_1.0/IPSRC/MSXBO_OVSensorRGB565.v:143]
+WARNING: [Synth 8-3917] design MSXBO_OVSensorRGB565 has port rgb_o[31] driven by constant 0
+WARNING: [Synth 8-3917] design MSXBO_OVSensorRGB565 has port rgb_o[30] driven by constant 0
+WARNING: [Synth 8-3917] design MSXBO_OVSensorRGB565 has port rgb_o[29] driven by constant 0
+WARNING: [Synth 8-3917] design MSXBO_OVSensorRGB565 has port rgb_o[28] driven by constant 0
+WARNING: [Synth 8-3917] design MSXBO_OVSensorRGB565 has port rgb_o[27] driven by constant 0
+WARNING: [Synth 8-3917] design MSXBO_OVSensorRGB565 has port rgb_o[26] driven by constant 0
+WARNING: [Synth 8-3917] design MSXBO_OVSensorRGB565 has port rgb_o[25] driven by constant 0
+WARNING: [Synth 8-3917] design MSXBO_OVSensorRGB565 has port rgb_o[24] driven by constant 0
+WARNING: [Synth 8-3331] design MSXBO_OVSensorRGB565 has unconnected port cmos_data_i[7]
+WARNING: [Synth 8-3331] design MSXBO_OVSensorRGB565 has unconnected port cmos_data_i[6]
+WARNING: [Synth 8-3331] design MSXBO_OVSensorRGB565 has unconnected port cmos_data_i[5]
+WARNING: [Synth 8-3331] design MSXBO_OVSensorRGB565 has unconnected port cmos_data_i[4]
+WARNING: [Synth 8-3331] design MSXBO_OVSensorRGB565 has unconnected port cmos_data_i[3]
+WARNING: [Synth 8-3331] design MSXBO_OVSensorRGB565 has unconnected port cmos_data_i[2]
+WARNING: [Synth 8-3331] design MSXBO_OVSensorRGB565 has unconnected port cmos_data_i[1]
+WARNING: [Synth 8-3331] design MSXBO_OVSensorRGB565 has unconnected port cmos_data_i[0]
+INFO: [Synth 8-3886] merging instance 'grid_data_2_reg[0]' (FDR) to 'grid_data_2_reg[7]'
+INFO: [Synth 8-3886] merging instance 'grid_data_2_reg[1]' (FDR) to 'grid_data_2_reg[7]'
+INFO: [Synth 8-3886] merging instance 'grid_data_2_reg[2]' (FDR) to 'grid_data_2_reg[7]'
+INFO: [Synth 8-3886] merging instance 'grid_data_2_reg[3]' (FDR) to 'grid_data_2_reg[7]'
+INFO: [Synth 8-3886] merging instance 'grid_data_2_reg[4]' (FDR) to 'grid_data_2_reg[7]'
+INFO: [Synth 8-3886] merging instance 'grid_data_2_reg[5]' (FDR) to 'grid_data_2_reg[7]'
+INFO: [Synth 8-3886] merging instance 'grid_data_2_reg[6]' (FDR) to 'grid_data_2_reg[7]'
+WARNING: [Synth 8-3332] Sequential element (vcounter_reg[11]) is unused and will be removed from module MSXBO_OVSensorRGB565.
+WARNING: [Synth 8-3332] Sequential element (vcounter_reg[10]) is unused and will be removed from module MSXBO_OVSensorRGB565.
+WARNING: [Synth 8-3332] Sequential element (vcounter_reg[9]) is unused and will be removed from module MSXBO_OVSensorRGB565.
+WARNING: [Synth 8-3332] Sequential element (vcounter_reg[8]) is unused and will be removed from module MSXBO_OVSensorRGB565.
+WARNING: [Synth 8-3332] Sequential element (vcounter_reg[7]) is unused and will be removed from module MSXBO_OVSensorRGB565.
+WARNING: [Synth 8-3332] Sequential element (hcounter_reg[7]) is unused and will be removed from module MSXBO_OVSensorRGB565.
+WARNING: [Synth 8-3332] Sequential element (hcounter_reg[8]) is unused and will be removed from module MSXBO_OVSensorRGB565.
+WARNING: [Synth 8-3332] Sequential element (hcounter_reg[9]) is unused and will be removed from module MSXBO_OVSensorRGB565.
+WARNING: [Synth 8-3332] Sequential element (hcounter_reg[10]) is unused and will be removed from module MSXBO_OVSensorRGB565.
+WARNING: [Synth 8-3332] Sequential element (hcounter_reg[11]) is unused and will be removed from module MSXBO_OVSensorRGB565.
+---------------------------------------------------------------------------------
+Finished Cross Boundary and Area Optimization : Time (s): cpu = 00:00:09 ; elapsed = 00:00:09 . Memory (MB): peak = 573.891 ; gain = 308.754
+---------------------------------------------------------------------------------
+
+Report RTL Partitions: 
++-+--------------+------------+----------+
+| |RTL Partition |Replication |Instances |
++-+--------------+------------+----------+
++-+--------------+------------+----------+
+No constraint files found.
+---------------------------------------------------------------------------------
+Start Timing Optimization
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Timing Optimization : Time (s): cpu = 00:00:09 ; elapsed = 00:00:09 . Memory (MB): peak = 573.891 ; gain = 308.754
+---------------------------------------------------------------------------------
+
+Report RTL Partitions: 
++-+--------------+------------+----------+
+| |RTL Partition |Replication |Instances |
++-+--------------+------------+----------+
++-+--------------+------------+----------+
+---------------------------------------------------------------------------------
+Start Technology Mapping
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Technology Mapping : Time (s): cpu = 00:00:09 ; elapsed = 00:00:09 . Memory (MB): peak = 573.891 ; gain = 308.754
+---------------------------------------------------------------------------------
+
+Report RTL Partitions: 
++-+--------------+------------+----------+
+| |RTL Partition |Replication |Instances |
++-+--------------+------------+----------+
++-+--------------+------------+----------+
+---------------------------------------------------------------------------------
+Start IO Insertion
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Flattening Before IO Insertion
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Flattening Before IO Insertion
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Final Netlist Cleanup
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Final Netlist Cleanup
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished IO Insertion : Time (s): cpu = 00:00:10 ; elapsed = 00:00:10 . Memory (MB): peak = 573.891 ; gain = 308.754
+---------------------------------------------------------------------------------
+
+Report Check Netlist: 
++------+------------------+-------+---------+-------+------------------+
+|      |Item              |Errors |Warnings |Status |Description       |
++------+------------------+-------+---------+-------+------------------+
+|1     |multi_driven_nets |      0|        0|Passed |Multi driven nets |
++------+------------------+-------+---------+-------+------------------+
+---------------------------------------------------------------------------------
+Start Renaming Generated Instances
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Renaming Generated Instances : Time (s): cpu = 00:00:10 ; elapsed = 00:00:10 . Memory (MB): peak = 573.891 ; gain = 308.754
+---------------------------------------------------------------------------------
+
+Report RTL Partitions: 
++-+--------------+------------+----------+
+| |RTL Partition |Replication |Instances |
++-+--------------+------------+----------+
++-+--------------+------------+----------+
+---------------------------------------------------------------------------------
+Start Rebuilding User Hierarchy
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Rebuilding User Hierarchy : Time (s): cpu = 00:00:10 ; elapsed = 00:00:10 . Memory (MB): peak = 573.891 ; gain = 308.754
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Renaming Generated Ports
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Renaming Generated Ports : Time (s): cpu = 00:00:10 ; elapsed = 00:00:10 . Memory (MB): peak = 573.891 ; gain = 308.754
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Handling Custom Attributes
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Handling Custom Attributes : Time (s): cpu = 00:00:10 ; elapsed = 00:00:10 . Memory (MB): peak = 573.891 ; gain = 308.754
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Renaming Generated Nets
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Renaming Generated Nets : Time (s): cpu = 00:00:10 ; elapsed = 00:00:10 . Memory (MB): peak = 573.891 ; gain = 308.754
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start ROM, RAM, DSP and Shift Register Reporting
+---------------------------------------------------------------------------------
+
+Static Shift Register Report:
++---------------------+------------------+--------+-------+--------------+--------------------+-------------------+--------+---------+
+|Module Name          | RTL Name         | Length | Width | Reset Signal | Pull out first Reg | Pull out last Reg | SRL16E | SRLC32E | 
++---------------------+------------------+--------+-------+--------------+--------------------+-------------------+--------+---------+
+|MSXBO_OVSensorRGB565 | rst_n_reg_reg[4] | 5      | 1     | NO           | YES                | YES               | 1      | 0       | 
++---------------------+------------------+--------+-------+--------------+--------------------+-------------------+--------+---------+
+
+---------------------------------------------------------------------------------
+Finished ROM, RAM, DSP and Shift Register Reporting
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Writing Synthesis Report
+---------------------------------------------------------------------------------
+
+Report BlackBoxes: 
++-+--------------+----------+
+| |BlackBox name |Instances |
++-+--------------+----------+
++-+--------------+----------+
+
+Report Cell Usage: 
++------+-------+------+
+|      |Cell   |Count |
++------+-------+------+
+|1     |BUFG   |     2|
+|2     |CARRY4 |     8|
+|3     |LUT1   |     6|
+|4     |LUT2   |     6|
+|5     |LUT3   |     3|
+|6     |LUT4   |     2|
+|7     |LUT5   |     1|
+|8     |LUT6   |     9|
+|9     |SRL16E |     1|
+|10    |FDRE   |    48|
+|11    |IBUF   |     5|
+|12    |OBUF   |    36|
++------+-------+------+
+
+Report Instance Areas: 
++------+---------+-------+------+
+|      |Instance |Module |Cells |
++------+---------+-------+------+
+|1     |top      |       |   127|
++------+---------+-------+------+
+---------------------------------------------------------------------------------
+Finished Writing Synthesis Report : Time (s): cpu = 00:00:10 ; elapsed = 00:00:10 . Memory (MB): peak = 573.891 ; gain = 308.754
+---------------------------------------------------------------------------------
+Synthesis finished with 0 errors, 0 critical warnings and 51 warnings.
+Synthesis Optimization Runtime : Time (s): cpu = 00:00:10 ; elapsed = 00:00:10 . Memory (MB): peak = 573.891 ; gain = 308.754
+Synthesis Optimization Complete : Time (s): cpu = 00:00:10 ; elapsed = 00:00:10 . Memory (MB): peak = 573.891 ; gain = 308.754
+INFO: [Project 1-571] Translating synthesized netlist
+INFO: [Netlist 29-17] Analyzing 13 Unisim elements for replacement
+INFO: [Netlist 29-28] Unisim Transformation completed in 0 CPU seconds
+INFO: [Project 1-570] Preparing netlist for logic optimization
+INFO: [Opt 31-138] Pushed 0 inverter(s) to 0 load pin(s).
+INFO: [Project 1-111] Unisim Transformation Summary:
+No Unisim elements were transformed.
+
+INFO: [Common 17-83] Releasing license: Synthesis
+18 Infos, 51 Warnings, 0 Critical Warnings and 0 Errors encountered.
+synth_design completed successfully
+synth_design: Time (s): cpu = 00:00:15 ; elapsed = 00:00:15 . Memory (MB): peak = 676.531 ; gain = 423.848
+INFO: [Common 17-1381] The checkpoint 'f:/MA703/A703_100T/07/AXI_DDR_5640/user_src/MSXBO_OVSensorRGB565_1.0/prj/msxbo_ovsensorrgb565_v1_0_project/MSXBO_OVSensorRGB565_v1_0_project.runs/synth_1/MSXBO_OVSensorRGB565.dcp' has been generated.
+INFO: [runtcl-4] Executing : report_utilization -file MSXBO_OVSensorRGB565_utilization_synth.rpt -pb MSXBO_OVSensorRGB565_utilization_synth.pb
+report_utilization: Time (s): cpu = 00:00:00 ; elapsed = 00:00:00.034 . Memory (MB): peak = 676.531 ; gain = 0.000
+INFO: [Common 17-206] Exiting Vivado at Fri Mar 29 16:23:12 2019...

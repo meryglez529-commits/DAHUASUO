@@ -1,0 +1,23 @@
+# Vivado generated / runtime outputs
+AXI_DDR.cache/
+AXI_DDR.gen/
+AXI_DDR.hw/
+AXI_DDR.ip_user_files/
+AXI_DDR.runs/
+AXI_DDR.sim/
+AXI_DDR.tmp/
+*.jou
+*.log
+*.backup.jou
+*.backup.log
+*.pb
+*.wdb
+*.vcd
+.Xil/
+xsim.dir/
+hw_ila_data_*.btree
+ip_upgrade.log
+
+# AI-work runtime (assets under AI-work/ are tracked, only specific subdirs ignored — see AI-work/.gitignore)
+AI-work/sim_out/
+AI-work/reports/

@@ -1,0 +1,90 @@
+{
+   "ActiveEmotionalView":"Default View",
+   "Default View_ScaleFactor":"1.09802",
+   "Default View_TopLeft":"19,0",
+   "ExpandedHierarchyInLayout":"",
+   "commentid":"",
+   "guistr":"# # String gsaved with Nlview 7.0r6  2020-01-29 bk=1.5227 VDI=41 GEI=36 GUI=JA:10.0 non-TLS
+#  -string -flagsOSRD
+preplace port DDR3 -pg 1 -lvl 3 -x 810 -y 120 -defaultsOSRD
+preplace port port-id_ui_clk -pg 1 -lvl 3 -x 810 -y 160 -defaultsOSRD
+preplace port port-id_clk200m -pg 1 -lvl 0 -x -20 -y 20 -defaultsOSRD
+preplace port port-id_pkg_wr_areq -pg 1 -lvl 0 -x -20 -y 570 -defaultsOSRD
+preplace port port-id_pkg_wr_last -pg 1 -lvl 3 -x 810 -y 630 -defaultsOSRD
+preplace port port-id_pkg_wr_en -pg 1 -lvl 3 -x 810 -y 650 -defaultsOSRD
+preplace port port-id_pkg_rd_areq -pg 1 -lvl 0 -x -20 -y 850 -defaultsOSRD
+preplace port port-id_pkg_rd_last -pg 1 -lvl 3 -x 810 -y 670 -defaultsOSRD
+preplace port port-id_pkg_rd_en -pg 1 -lvl 3 -x 810 -y 710 -defaultsOSRD
+preplace port port-id_aux_reset -pg 1 -lvl 0 -x -20 -y 160 -defaultsOSRD
+preplace port port-id_mig_rstn -pg 1 -lvl 0 -x -20 -y 40 -defaultsOSRD
+preplace port port-id_pkg1_wr_areq -pg 1 -lvl 0 -x -20 -y 900 -defaultsOSRD
+preplace port port-id_pkg1_rd_areq -pg 1 -lvl 0 -x -20 -y 980 -defaultsOSRD
+preplace port port-id_pkg1_wr_last -pg 1 -lvl 3 -x 810 -y 950 -defaultsOSRD
+preplace port port-id_pkg1_wr_en -pg 1 -lvl 3 -x 810 -y 970 -defaultsOSRD
+preplace port port-id_pkg1_rd_last -pg 1 -lvl 3 -x 810 -y 990 -defaultsOSRD
+preplace port port-id_pkg1_rd_en -pg 1 -lvl 3 -x 810 -y 1030 -defaultsOSRD
+preplace portBus fdma_rstn -pg 1 -lvl 3 -x 810 -y 840 -defaultsOSRD
+preplace portBus pkg_wr_addr -pg 1 -lvl 0 -x -20 -y 750 -defaultsOSRD
+preplace portBus pkg_wr_size -pg 1 -lvl 0 -x -20 -y 770 -defaultsOSRD
+preplace portBus pkg_rd_addr -pg 1 -lvl 0 -x -20 -y 810 -defaultsOSRD
+preplace portBus pkg_rd_size -pg 1 -lvl 0 -x -20 -y 830 -defaultsOSRD
+preplace portBus pkg1_wr_addr -pg 1 -lvl 0 -x -20 -y 940 -defaultsOSRD
+preplace portBus pkg1_wr_size -pg 1 -lvl 0 -x -20 -y 960 -defaultsOSRD
+preplace portBus pkg1_rd_addr -pg 1 -lvl 0 -x -20 -y 1000 -defaultsOSRD
+preplace portBus pkg1_rd_size -pg 1 -lvl 0 -x -20 -y 1020 -defaultsOSRD
+preplace portBus pkg_wr_data -pg 1 -lvl 0 -x -20 -y 730 -defaultsOSRD
+preplace portBus pkg1_wr_data -pg 1 -lvl 0 -x -20 -y 920 -defaultsOSRD
+preplace portBus pkg_rd_data -pg 1 -lvl 3 -x 810 -y 690 -defaultsOSRD
+preplace portBus pkg1_rd_data -pg 1 -lvl 3 -x 810 -y 1010 -defaultsOSRD
+preplace inst MSXBO_FDMA_0 -pg 1 -lvl 2 -x 620 -y 660 -defaultsOSRD
+preplace inst MSXBO_FDMA_1 -pg 1 -lvl 2 -x 620 -y 980 -defaultsOSRD
+preplace inst proc_sys_reset_0 -pg 1 -lvl 1 -x 230 -y 160 -defaultsOSRD
+preplace inst mig_7series_0 -pg 1 -lvl 2 -x 620 -y 160 -defaultsOSRD
+preplace inst axi_interconnect_1 -pg 1 -lvl 1 -x 230 -y 420 -defaultsOSRD
+preplace inst system_ila_0 -pg 1 -lvl 1 -x 230 -y 660 -defaultsOSRD
+preplace netloc MSXBO_FDMA_0_pkg_rd_data 1 2 1 NJ 690
+preplace netloc MSXBO_FDMA_0_pkg_rd_en 1 2 1 NJ 710
+preplace netloc MSXBO_FDMA_0_pkg_rd_last 1 2 1 NJ 670
+preplace netloc MSXBO_FDMA_0_pkg_wr_en 1 2 1 NJ 650
+preplace netloc MSXBO_FDMA_0_pkg_wr_last 1 2 1 NJ 630
+preplace netloc MSXBO_FDMA_1_pkg_rd_data 1 2 1 NJ 1010
+preplace netloc MSXBO_FDMA_1_pkg_rd_en 1 2 1 NJ 1030
+preplace netloc MSXBO_FDMA_1_pkg_rd_last 1 2 1 NJ 990
+preplace netloc MSXBO_FDMA_1_pkg_wr_en 1 2 1 NJ 970
+preplace netloc MSXBO_FDMA_1_pkg_wr_last 1 2 1 NJ 950
+preplace netloc aux_reset_1 1 0 1 NJ 160
+preplace netloc clk200m_1 1 0 2 NJ 20 450
+preplace netloc mig_7series_0_mmcm_locked 1 0 3 50 10 NJ 10 780
+preplace netloc mig_7series_0_ui_clk 1 0 3 20 60 420 260 790
+preplace netloc mig_7series_0_ui_clk_sync_rst 1 0 3 60 50 NJ 50 770
+preplace netloc mig_rstn_1 1 0 2 NJ 40 440J
+preplace netloc pkg1_rd_addr_1 1 0 2 NJ 1000 NJ
+preplace netloc pkg1_rd_areq_1 1 0 2 NJ 980 NJ
+preplace netloc pkg1_rd_size_1 1 0 2 NJ 1020 NJ
+preplace netloc pkg1_wr_addr_1 1 0 2 NJ 940 NJ
+preplace netloc pkg1_wr_areq_1 1 0 2 NJ 900 NJ
+preplace netloc pkg1_wr_data_1 1 0 2 NJ 920 NJ
+preplace netloc pkg1_wr_size_1 1 0 2 NJ 960 NJ
+preplace netloc pkg_rd_addr_1 1 0 2 0J 820 460J
+preplace netloc pkg_rd_areq_1 1 0 2 10J 580 400J
+preplace netloc pkg_rd_size_1 1 0 2 NJ 830 470J
+preplace netloc pkg_wr_addr_1 1 0 2 NJ 750 430J
+preplace netloc pkg_wr_areq_1 1 0 2 NJ 570 430J
+preplace netloc pkg_wr_data_1 1 0 2 20J 740 410J
+preplace netloc pkg_wr_size_1 1 0 2 NJ 770 450J
+preplace netloc proc_sys_reset_0_interconnect_aresetn 1 0 2 50 260 400
+preplace netloc rst_mig_7series_0_100M_peripheral_aresetn1 1 0 3 60 270 440 840 NJ
+preplace netloc MSXBO_FDMA_0_M00_AXI 1 0 3 30 800 NJ 800 770
+preplace netloc MSXBO_FDMA_1_M00_AXI 1 0 3 40 810 NJ 810 770
+preplace netloc axi_interconnect_1_M00_AXI 1 1 1 410 120n
+preplace netloc mig_7series_0_DDR3 1 2 1 NJ 120
+levelinfo -pg 1 -20 230 620 810
+pagesize -pg 1 -db -bbox -sgen -200 0 990 1120
+"
+}
+{
+   "da_axi4_cnt":"3",
+   "da_board_cnt":"6",
+   "da_clkrst_cnt":"5",
+   "da_xdma_cnt":"1"
+}

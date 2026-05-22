@@ -1,0 +1,10 @@
+# AI-work runtime outputs — not source assets
+sim_out/
+reports/
+*.wdb
+*.jou
+*.log
+*.pb
+*.vcd
+xsim.dir/
+.Xil/

@@ -1,0 +1,1179 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SGSC SEM FPGA Flow Map</title>
+  <style>
+    :root {
+      --bg: #f7f8fb;
+      --panel: #ffffff;
+      --ink: #1f2937;
+      --muted: #667085;
+      --line: #d7dde8;
+      --control: #d97706;
+      --control-soft: #fff4dc;
+      --dac: #0284c7;
+      --dac-soft: #e6f6ff;
+      --adc: #15803d;
+      --adc-soft: #e8f8ee;
+      --trigger: #db2777;
+      --trigger-soft: #fde7f2;
+      --storage: #6d28d9;
+      --storage-soft: #f0eaff;
+      --support: #475569;
+      --support-soft: #eef2f7;
+      --danger: #b42318;
+      --danger-soft: #fff0ed;
+      --shadow: 0 16px 40px rgba(31, 41, 55, .08);
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", Arial, sans-serif;
+      letter-spacing: 0;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto minmax(620px, 1fr) auto;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 16px 22px 12px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, .86);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .title {
+      min-width: 260px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.25;
+      font-weight: 760;
+    }
+
+    .subtitle {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .segmented {
+      display: inline-grid;
+      grid-template-columns: repeat(5, minmax(72px, auto));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: #fff;
+    }
+
+    button {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      padding: 9px 12px;
+      font: inherit;
+      font-size: 13px;
+      line-height: 1;
+      cursor: pointer;
+      min-height: 34px;
+    }
+
+    button + button {
+      border-left: 1px solid var(--line);
+    }
+
+    button.active {
+      background: #111827;
+      color: #fff;
+    }
+
+    .switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      height: 36px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .switch input {
+      width: 34px;
+      height: 18px;
+      margin: 0;
+      accent-color: #111827;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(760px, 1fr) 360px;
+      gap: 16px;
+      padding: 16px 18px 0;
+      min-height: 0;
+    }
+
+    .canvas-wrap {
+      min-width: 0;
+      min-height: 620px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .legend {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .legend-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+    }
+
+    .key {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .swatch {
+      width: 18px;
+      height: 4px;
+      border-radius: 2px;
+      display: inline-block;
+    }
+
+    .swatch.control { background: var(--control); }
+    .swatch.dac { background: var(--dac); }
+    .swatch.adc { background: var(--adc); }
+    .swatch.trigger { background: var(--trigger); }
+    .swatch.storage { background: var(--storage); }
+
+    .diagram-shell {
+      position: relative;
+      min-height: 0;
+      overflow: auto;
+      background:
+        linear-gradient(90deg, rgba(148,163,184,.11) 1px, transparent 1px) 0 0 / 34px 34px,
+        linear-gradient(180deg, rgba(148,163,184,.10) 1px, transparent 1px) 0 0 / 34px 34px,
+        #fbfcff;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      min-width: 1120px;
+      height: 760px;
+    }
+
+    .lane-label {
+      font-size: 13px;
+      fill: #6b7280;
+      font-weight: 650;
+    }
+
+    .lane-band {
+      fill: rgba(17, 24, 39, .025);
+      stroke: rgba(148, 163, 184, .38);
+      stroke-dasharray: 6 5;
+    }
+
+    .flow {
+      fill: none;
+      stroke-width: 4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      marker-end: url(#arrow);
+      opacity: .9;
+      stroke-dasharray: 13 11;
+      animation: flowDash 1.1s linear infinite;
+    }
+
+    .flow.control { stroke: var(--control); }
+    .flow.dac { stroke: var(--dac); }
+    .flow.adc { stroke: var(--adc); }
+    .flow.trigger { stroke: var(--trigger); }
+    .flow.storage { stroke: var(--storage); }
+    .flow.support { stroke: var(--support); }
+
+    .flow.thin {
+      stroke-width: 2.4;
+      stroke-dasharray: 8 9;
+      opacity: .78;
+    }
+
+    .particle {
+      r: 4.8;
+      opacity: .95;
+      filter: drop-shadow(0 2px 5px rgba(0,0,0,.2));
+    }
+
+    .particle.control { fill: var(--control); }
+    .particle.dac { fill: var(--dac); }
+    .particle.adc { fill: var(--adc); }
+    .particle.trigger { fill: var(--trigger); }
+    .particle.storage { fill: var(--storage); }
+
+    .node {
+      cursor: pointer;
+      transition: opacity .2s ease, transform .2s ease;
+    }
+
+    .node rect {
+      stroke-width: 1.4;
+      rx: 7;
+      ry: 7;
+      filter: drop-shadow(0 8px 16px rgba(31,41,55,.08));
+    }
+
+    .node text {
+      pointer-events: none;
+      fill: var(--ink);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .node .sub {
+      fill: #667085;
+      font-size: 11px;
+      font-weight: 520;
+    }
+
+    .node.control rect { fill: var(--control-soft); stroke: rgba(217,119,6,.48); }
+    .node.dac rect { fill: var(--dac-soft); stroke: rgba(2,132,199,.48); }
+    .node.adc rect { fill: var(--adc-soft); stroke: rgba(21,128,61,.48); }
+    .node.trigger rect { fill: var(--trigger-soft); stroke: rgba(219,39,119,.44); }
+    .node.storage rect { fill: var(--storage-soft); stroke: rgba(109,40,217,.44); }
+    .node.support rect { fill: var(--support-soft); stroke: rgba(71,85,105,.38); }
+    .node.danger rect { fill: var(--danger-soft); stroke: rgba(180,35,24,.48); }
+
+    .node.selected rect {
+      stroke: #111827;
+      stroke-width: 2.3;
+    }
+
+    .node:hover {
+      opacity: 1;
+    }
+
+    body[data-view="control"] .flow:not(.control):not(.support),
+    body[data-view="control"] .particle:not(.control),
+    body[data-view="control"] .node:not(.control):not(.support):not(.danger) {
+      opacity: .18;
+    }
+
+    body[data-view="dac"] .flow:not(.dac):not(.trigger):not(.control),
+    body[data-view="dac"] .particle:not(.dac):not(.trigger):not(.control),
+    body[data-view="dac"] .node:not(.dac):not(.trigger):not(.control):not(.support):not(.danger) {
+      opacity: .16;
+    }
+
+    body[data-view="adc"] .flow:not(.adc):not(.storage):not(.trigger):not(.control),
+    body[data-view="adc"] .particle:not(.adc):not(.storage):not(.trigger):not(.control),
+    body[data-view="adc"] .node:not(.adc):not(.storage):not(.trigger):not(.control):not(.support) {
+      opacity: .16;
+    }
+
+    body[data-view="timing"] .flow:not(.storage):not(.trigger):not(.support),
+    body[data-view="timing"] .particle:not(.storage):not(.trigger),
+    body[data-view="timing"] .node:not(.storage):not(.trigger):not(.support):not(.control) {
+      opacity: .20;
+    }
+
+    body.paused .flow {
+      animation-play-state: paused;
+    }
+
+    body.paused .particle {
+      opacity: .16;
+    }
+
+    @keyframes flowDash {
+      to { stroke-dashoffset: -24; }
+    }
+
+    aside {
+      min-width: 0;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 12px;
+    }
+
+    .inspector,
+    .risk-panel,
+    .mini-list,
+    .table-panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .inspector {
+      padding: 16px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .inspector h2 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.25;
+    }
+
+    .inspector .summary {
+      margin: 10px 0 12px;
+      color: #475467;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 10px 0 0;
+    }
+
+    .chip {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 8px;
+      color: #475467;
+      background: #fff;
+      font-size: 12px;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .meta-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .meta-item {
+      display: grid;
+      grid-template-columns: 74px 1fr;
+      gap: 8px;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .meta-item b {
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .risk-panel {
+      padding: 12px 14px;
+    }
+
+    .risk-panel h3,
+    .mini-list h3,
+    .table-panel h3 {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.25;
+    }
+
+    .risk-panel p {
+      margin: 8px 0 0;
+      color: #475467;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .mini-list {
+      min-height: 0;
+      overflow: auto;
+    }
+
+    .mini-list h3 {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .source-list {
+      padding: 10px 14px 14px;
+      display: grid;
+      gap: 9px;
+    }
+
+    .source-list a,
+    .source-list span {
+      color: #334155;
+      font-size: 12px;
+      line-height: 1.35;
+      text-decoration: none;
+      word-break: break-word;
+    }
+
+    footer {
+      padding: 16px 18px 20px;
+    }
+
+    .tables {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(280px, 1fr));
+      gap: 14px;
+    }
+
+    .table-panel {
+      overflow: hidden;
+    }
+
+    .table-panel h3 {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+      line-height: 1.45;
+    }
+
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      padding: 9px 10px;
+      border-bottom: 1px solid #edf1f7;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      background: #fbfcff;
+      font-weight: 760;
+    }
+
+    td code,
+    .inspector code {
+      color: #0f172a;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 5px;
+      padding: 1px 4px;
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: .92em;
+    }
+
+    .badge {
+      display: inline-block;
+      min-width: 44px;
+      text-align: center;
+      padding: 3px 6px;
+      border-radius: 999px;
+      font-weight: 760;
+      font-size: 11px;
+    }
+
+    .badge.control { color: #7c3f00; background: var(--control-soft); }
+    .badge.dac { color: #075985; background: var(--dac-soft); }
+    .badge.adc { color: #166534; background: var(--adc-soft); }
+    .badge.storage { color: #4c1d95; background: var(--storage-soft); }
+    .badge.trigger { color: #9d174d; background: var(--trigger-soft); }
+
+    @media (max-width: 1180px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      aside {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto;
+      }
+
+      .mini-list {
+        grid-column: 1 / -1;
+        max-height: 260px;
+      }
+
+      .tables {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .toolbar {
+        justify-content: flex-start;
+      }
+
+      .segmented {
+        grid-template-columns: repeat(2, minmax(96px, 1fr));
+        width: 100%;
+      }
+
+      .segmented button:nth-child(3) {
+        border-left: 0;
+      }
+
+      .switch {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      main {
+        padding: 12px 10px 0;
+      }
+
+      footer {
+        padding: 12px 10px 16px;
+      }
+
+      aside {
+        grid-template-columns: 1fr;
+      }
+
+      svg {
+        height: 680px;
+      }
+    }
+  </style>
+</head>
+<body data-view="all">
+  <div class="app">
+    <header>
+      <div class="title">
+        <h1>SGSC SEM FPGA 控制与数据流图</h1>
+        <div class="subtitle">基于 FPGA_PROJECT_GUIDE、DL1、DL2、DL4 深读文档整理</div>
+      </div>
+      <div class="toolbar">
+        <div class="segmented" role="tablist" aria-label="flow filters">
+          <button class="active" data-view="all">总览</button>
+          <button data-view="control">控制参数</button>
+          <button data-view="dac">DAC扫描</button>
+          <button data-view="adc">ADC采集</button>
+          <button data-view="timing">时钟缓存</button>
+        </div>
+        <label class="switch">
+          <input id="motionToggle" type="checkbox" checked>
+          <span>流动动画</span>
+        </label>
+      </div>
+    </header>
+
+    <main>
+      <section class="canvas-wrap">
+        <div class="legend">
+          <div class="legend-list">
+            <span class="key"><span class="swatch control"></span>控制参数</span>
+            <span class="key"><span class="swatch dac"></span>DAC扫描点</span>
+            <span class="key"><span class="swatch adc"></span>ADC样本</span>
+            <span class="key"><span class="swatch trigger"></span>触发同步</span>
+            <span class="key"><span class="swatch storage"></span>DDR/CDC</span>
+          </div>
+          <span>顶层：ETH_TOP，主时钟域：eth_clk / dac_dco / adc_dco / ui_clk</span>
+        </div>
+        <div class="diagram-shell">
+          <svg id="flowSvg" viewBox="0 0 1400 820" aria-label="FPGA data flow">
+            <defs>
+              <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"></path>
+              </marker>
+            </defs>
+
+            <rect class="lane-band" x="24" y="26" width="1352" height="178" rx="8"></rect>
+            <text class="lane-label" x="42" y="50">DL4 控制面：UDP寄存器包到硬件参数</text>
+            <rect class="lane-band" x="24" y="236" width="1352" height="216" rx="8"></rect>
+            <text class="lane-label" x="42" y="260">DL1 DAC扫描：参数预计算到物理DAC输出</text>
+            <rect class="lane-band" x="24" y="488" width="1352" height="278" rx="8"></rect>
+            <text class="lane-label" x="42" y="512">DL2 ADC采集：AD9258到DDR再到UDP回传</text>
+
+            <path id="pControl1" class="flow control" d="M 170 118 C 240 118, 245 118, 310 118"></path>
+            <path id="pControl2" class="flow control" d="M 450 118 C 520 118, 535 118, 600 118"></path>
+            <path id="pControl3" class="flow control" d="M 740 118 C 805 118, 815 118, 882 118"></path>
+            <path id="pControlDac" class="flow control thin" d="M 1038 92 C 1085 62, 1136 62, 1190 78"></path>
+            <path id="pControlAdc" class="flow control thin" d="M 1038 130 C 1080 160, 1138 170, 1190 162"></path>
+            <path id="pControlRemote" class="flow control thin" d="M 1038 154 C 1084 210, 1138 224, 1190 224"></path>
+            <path id="pControlOffset" class="flow control thin" d="M 1038 170 C 1080 270, 1138 302, 1190 310"></path>
+
+            <path id="pDac1" class="flow dac" d="M 310 336 C 400 336, 426 336, 506 336"></path>
+            <path id="pDac2" class="flow dac" d="M 646 336 C 720 336, 730 336, 800 336"></path>
+            <path id="pDac3" class="flow storage" d="M 940 336 C 1002 336, 1015 336, 1072 336"></path>
+            <path id="pDac4" class="flow dac" d="M 1212 336 C 1265 336, 1280 336, 1332 336"></path>
+            <path id="pTrigAdc" class="flow trigger" d="M 1162 386 C 1104 468, 410 468, 352 572"></path>
+            <path id="pTrigOut" class="flow trigger thin" d="M 1178 286 C 1240 248, 1285 246, 1336 250"></path>
+
+            <path id="pAdc1" class="flow adc" d="M 170 626 C 230 626, 250 626, 304 626"></path>
+            <path id="pAdc2" class="flow adc" d="M 444 626 C 500 626, 518 626, 568 626"></path>
+            <path id="pAdc3" class="flow adc" d="M 708 626 C 760 626, 780 626, 830 626"></path>
+            <path id="pAdc4" class="flow adc" d="M 970 626 C 1016 626, 1030 626, 1076 626"></path>
+            <path id="pAdc5" class="flow storage" d="M 1216 626 C 1250 626, 1268 626, 1302 626"></path>
+            <path id="pAdc6" class="flow adc" d="M 1302 686 C 1186 758, 300 776, 164 690"></path>
+
+            <g class="node control" data-key="pc" transform="translate(42 82)">
+              <rect width="128" height="72"></rect>
+              <text x="14" y="28">PC上位机</text>
+              <text class="sub" x="14" y="48">UDP 32000/32001</text>
+            </g>
+
+            <g class="node control support" data-key="ethernet" transform="translate(310 78)">
+              <rect width="140" height="80"></rect>
+              <text x="14" y="27">ETHERNET_TOP</text>
+              <text class="sub" x="14" y="48">SGMII / UDP</text>
+              <text class="sub" x="14" y="64">user_axis_clk</text>
+            </g>
+
+            <g class="node control" data-key="regParser" transform="translate(600 78)">
+              <rect width="140" height="80"></rect>
+              <text x="14" y="27">WR_RD_REG_TOP</text>
+              <text class="sub" x="14" y="48">LAN_WR_REG</text>
+              <text class="sub" x="14" y="64">WR/RD_REG合同</text>
+            </g>
+
+            <g class="node control danger" data-key="command" transform="translate(882 70)">
+              <rect width="156" height="96"></rect>
+              <text x="14" y="29">command_monitor</text>
+              <text class="sub" x="14" y="51">地址解码</text>
+              <text class="sub" x="14" y="67">参数影子寄存器</text>
+              <text class="sub" x="14" y="83">0x0200风险</text>
+            </g>
+
+            <g class="node dac" data-key="dacCfg" transform="translate(1190 42)">
+              <rect width="154" height="72"></rect>
+              <text x="14" y="28">dacdata_config</text>
+              <text class="sub" x="14" y="49">DL1参数消费者</text>
+            </g>
+
+            <g class="node adc" data-key="adcCfg" transform="translate(1190 132)">
+              <rect width="154" height="72"></rect>
+              <text x="14" y="28">adcdata_config</text>
+              <text class="sub" x="14" y="49">DL2参数消费者</text>
+            </g>
+
+            <g class="node storage" data-key="remote" transform="translate(1190 212)">
+              <rect width="154" height="72"></rect>
+              <text x="14" y="28">ddr3_ctrl</text>
+              <text class="sub" x="14" y="49">remote_rstn</text>
+            </g>
+
+            <g class="node support" data-key="offset" transform="translate(1190 292)">
+              <rect width="154" height="72"></rect>
+              <text x="14" y="28">FRAM / offset</text>
+              <text class="sub" x="14" y="49">偏置参数</text>
+            </g>
+
+            <g class="node control" data-key="registers" transform="translate(64 300)">
+              <rect width="246" height="72"></rect>
+              <text x="14" y="28">控制寄存器组</text>
+              <text class="sub" x="14" y="49">sample / row / mode / ultrafast</text>
+            </g>
+
+            <g class="node dac" data-key="paramGen" transform="translate(506 292)">
+              <rect width="140" height="88"></rect>
+              <text x="14" y="27">parameter_gen</text>
+              <text class="sub" x="14" y="48">14状态扫描FSM</text>
+              <text class="sub" x="14" y="64">35-bit参数流</text>
+            </g>
+
+            <g class="node storage" data-key="dacFifo" transform="translate(800 300)">
+              <rect width="140" height="72"></rect>
+              <text x="14" y="28">fifo_generator_4</text>
+              <text class="sub" x="14" y="49">eth_clk到dac_dco</text>
+            </g>
+
+            <g class="node dac trigger" data-key="dacOutput" transform="translate(1072 284)">
+              <rect width="140" height="104"></rect>
+              <text x="14" y="27">dac_output</text>
+              <text class="sub" x="14" y="48">拆包DAX/DAY</text>
+              <text class="sub" x="14" y="64">adc_tri</text>
+              <text class="sub" x="14" y="80">sync1/sync2</text>
+            </g>
+
+            <g class="node dac" data-key="ad9747" transform="translate(1332 304)">
+              <rect width="56" height="64"></rect>
+              <text x="9" y="27">AD9747</text>
+              <text class="sub" x="9" y="47">DAC</text>
+            </g>
+
+            <g class="node trigger" data-key="triggerOut" transform="translate(1306 214)">
+              <rect width="82" height="72"></rect>
+              <text x="10" y="28">TRIGGER</text>
+              <text class="sub" x="10" y="49">OUT/BLANK</text>
+            </g>
+
+            <g class="node adc" data-key="ad9258" transform="translate(42 590)">
+              <rect width="128" height="72"></rect>
+              <text x="14" y="28">2x AD9258</text>
+              <text class="sub" x="14" y="49">4路14-bit样本</text>
+            </g>
+
+            <g class="node adc trigger" data-key="adcAcq" transform="translate(304 576)">
+              <rect width="140" height="100"></rect>
+              <text x="14" y="27">adcdata_acq x4</text>
+              <text class="sub" x="14" y="48">adc_dco采样</text>
+              <text class="sub" x="14" y="64">平均/ultrafast</text>
+              <text class="sub" x="14" y="80">FIFO到ui_clk</text>
+            </g>
+
+            <g class="node adc" data-key="adcGet" transform="translate(568 586)">
+              <rect width="140" height="80"></rect>
+              <text x="14" y="28">adcdata_get</text>
+              <text class="sub" x="14" y="49">1/2/4路选择</text>
+              <text class="sub" x="14" y="65">64-bit包</text>
+            </g>
+
+            <g class="node storage" data-key="fdmaWrite" transform="translate(830 586)">
+              <rect width="140" height="80"></rect>
+              <text x="14" y="28">FDMA写控制</text>
+              <text class="sub" x="14" y="49">128 beat</text>
+              <text class="sub" x="14" y="65">pkg1_wr_*</text>
+            </g>
+
+            <g class="node storage" data-key="ddr3" transform="translate(1076 580)">
+              <rect width="140" height="92"></rect>
+              <text x="14" y="30">MIG DDR3</text>
+              <text class="sub" x="14" y="51">MSXBO_FDMA_1</text>
+              <text class="sub" x="14" y="67">64-bit用户侧</text>
+            </g>
+
+            <g class="node adc" data-key="lanFrame" transform="translate(1302 582)">
+              <rect width="86" height="88"></rect>
+              <text x="10" y="28">LAN_TX</text>
+              <text class="sub" x="10" y="49">FREAME</text>
+              <text class="sub" x="10" y="65">64到8</text>
+            </g>
+
+            <circle class="particle control">
+              <animateMotion dur="3.5s" repeatCount="indefinite"><mpath href="#pControl1"></mpath></animateMotion>
+            </circle>
+            <circle class="particle control">
+              <animateMotion dur="3.7s" begin=".7s" repeatCount="indefinite"><mpath href="#pControl2"></mpath></animateMotion>
+            </circle>
+            <circle class="particle control">
+              <animateMotion dur="3.8s" begin="1.2s" repeatCount="indefinite"><mpath href="#pControl3"></mpath></animateMotion>
+            </circle>
+            <circle class="particle control">
+              <animateMotion dur="4.6s" begin=".3s" repeatCount="indefinite"><mpath href="#pControlDac"></mpath></animateMotion>
+            </circle>
+            <circle class="particle control">
+              <animateMotion dur="4.4s" begin=".9s" repeatCount="indefinite"><mpath href="#pControlAdc"></mpath></animateMotion>
+            </circle>
+
+            <circle class="particle dac">
+              <animateMotion dur="4.2s" repeatCount="indefinite"><mpath href="#pDac1"></mpath></animateMotion>
+            </circle>
+            <circle class="particle dac">
+              <animateMotion dur="4.2s" begin=".8s" repeatCount="indefinite"><mpath href="#pDac2"></mpath></animateMotion>
+            </circle>
+            <circle class="particle storage">
+              <animateMotion dur="4.2s" begin="1.4s" repeatCount="indefinite"><mpath href="#pDac3"></mpath></animateMotion>
+            </circle>
+            <circle class="particle dac">
+              <animateMotion dur="4.2s" begin="2s" repeatCount="indefinite"><mpath href="#pDac4"></mpath></animateMotion>
+            </circle>
+            <circle class="particle trigger">
+              <animateMotion dur="5.2s" begin=".2s" repeatCount="indefinite"><mpath href="#pTrigAdc"></mpath></animateMotion>
+            </circle>
+            <circle class="particle trigger">
+              <animateMotion dur="4.5s" begin="1s" repeatCount="indefinite"><mpath href="#pTrigOut"></mpath></animateMotion>
+            </circle>
+
+            <circle class="particle adc">
+              <animateMotion dur="5.0s" repeatCount="indefinite"><mpath href="#pAdc1"></mpath></animateMotion>
+            </circle>
+            <circle class="particle adc">
+              <animateMotion dur="5.0s" begin=".7s" repeatCount="indefinite"><mpath href="#pAdc2"></mpath></animateMotion>
+            </circle>
+            <circle class="particle adc">
+              <animateMotion dur="5.0s" begin="1.4s" repeatCount="indefinite"><mpath href="#pAdc3"></mpath></animateMotion>
+            </circle>
+            <circle class="particle storage">
+              <animateMotion dur="5.0s" begin="2.1s" repeatCount="indefinite"><mpath href="#pAdc4"></mpath></animateMotion>
+            </circle>
+            <circle class="particle storage">
+              <animateMotion dur="5.0s" begin="2.8s" repeatCount="indefinite"><mpath href="#pAdc5"></mpath></animateMotion>
+            </circle>
+            <circle class="particle adc">
+              <animateMotion dur="6.5s" begin="1s" repeatCount="indefinite"><mpath href="#pAdc6"></mpath></animateMotion>
+            </circle>
+          </svg>
+        </div>
+      </section>
+
+      <aside>
+        <section class="inspector" id="inspector">
+          <p class="eyebrow">当前节点</p>
+          <h2>command_monitor_new</h2>
+          <p class="summary">DL4 的集中解码点。它把 `WR_REG_ADDR/DATA` 变成 DL1、DL2、DL3 和 offset 支撑逻辑使用的参数影子寄存器。</p>
+          <div class="chips">
+            <span class="chip">eth_clk</span>
+            <span class="chip">WR_REG</span>
+            <span class="chip">RD_REG_DATA</span>
+          </div>
+          <div class="meta-list">
+            <div class="meta-item"><b>输入</b><span>`WR_REG_VALID/ADDR/DATA`，`RD_REG_VALID/ADDR`</span></div>
+            <div class="meta-item"><b>输出</b><span>`scan_state`、`adc_sample`、`dac_sample`、`ultrafast_mode` 等</span></div>
+            <div class="meta-item"><b>证据</b><span>`command_monitor_new.v:191-281`</span></div>
+          </div>
+        </section>
+
+        <section class="risk-panel">
+          <h3>高价值结论</h3>
+          <p>控制参数是 DL1/DL2 的共同源头。`0x0002` 同时写 `dac_sample` 和 `adc_sample`，`0x0009` 同时写 `adc_interval/scan_mode/scan_state`。`0x0200` 在代码中重复定义，sync2 宽度需要重点核对。</p>
+        </section>
+
+        <section class="mini-list">
+          <h3>参考文档</h3>
+          <div class="source-list">
+            <span>FPGA_PROJECT_GUIDE.md：全工程链路地图</span>
+            <span>DL1_DAC_SCAN_DEEP_READ.md：DAC扫描、触发、sync输出</span>
+            <span>DL2_ADC_DDR_ETH_DEEP_READ.md：ADC采集、DDR、UDP回传</span>
+            <span>DL4_REG_CONTROL_DEEP_READ.md：寄存器控制链路</span>
+          </div>
+        </section>
+      </aside>
+    </main>
+
+    <footer>
+      <div class="tables">
+        <section class="table-panel">
+          <h3>寄存器参数扇出</h3>
+          <table>
+            <thead>
+              <tr><th>地址</th><th>参数</th><th>去向</th><th>作用</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>0x0002</code></td><td><code>dac_sample</code>, <code>adc_sample</code></td><td><span class="badge dac">DL1</span> <span class="badge adc">DL2</span></td><td>每点停留和ADC平均数绑定</td></tr>
+              <tr><td><code>0x0004</code></td><td><code>image_row</code>, <code>image_column</code></td><td><span class="badge dac">DL1</span> <span class="badge adc">DL2</span></td><td>扫描尺寸和总点数</td></tr>
+              <tr><td><code>0x0005-0x0007</code></td><td><code>dacx_*</code>, <code>dacy_*</code></td><td><span class="badge dac">DL1</span></td><td>起止电平、恢复时间和步进重算</td></tr>
+              <tr><td><code>0x0009</code></td><td><code>adc_interval</code>, <code>scan_mode</code>, <code>scan_state</code></td><td><span class="badge control">CTRL</span></td><td>采样间隔、模式和启停</td></tr>
+              <tr><td><code>0x0202</code></td><td><code>ultrafast_line_rec</code>, <code>ultrafast_mode</code></td><td><span class="badge dac">DL1</span> <span class="badge adc">DL2</span></td><td>快速模式改变DAC恢复和ADC采样策略</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="table-panel">
+          <h3>ADC数据形态</h3>
+          <table>
+            <thead>
+              <tr><th>位置</th><th>位宽</th><th>含义</th><th>变化</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>AD9258输入</td><td>4 x 14</td><td>顶层取 <code>[15:2]</code></td><td>外设样本进入FPGA</td></tr>
+              <tr><td><code>adcdata_acq</code></td><td>16</td><td>按 <code>adc_sample</code> 平均后的点</td><td><code>adc_dco</code> 到 <code>ui_clk</code></td></tr>
+              <tr><td><code>adcdata_get</code></td><td>64</td><td>按 <code>adc_channel</code> 聚合</td><td>1/2/4路打包</td></tr>
+              <tr><td>FDMA/MIG</td><td>64</td><td>DDR用户侧beat</td><td>128 beat一包</td></tr>
+              <tr><td><code>LAN_TX_FREAME</code></td><td>8</td><td>UDP payload字节</td><td>64到8宽度转换</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="table-panel">
+          <h3>关键CDC/缓存</h3>
+          <table>
+            <thead>
+              <tr><th>结构</th><th>写时钟</th><th>读时钟</th><th>数据</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>fifo_generator_4</code></td><td><code>eth_clk</code></td><td><code>dac_dco</code></td><td>35-bit DAC参数流</td></tr>
+              <tr><td><code>fifo_generator_1</code></td><td><code>adc_dco</code></td><td><code>ui_clk</code></td><td>16-bit ADC平均点</td></tr>
+              <tr><td><code>fifo_generator_3</code></td><td><code>ui_clk</code></td><td><code>ui_clk</code></td><td>64-bit ADC写DDR缓存</td></tr>
+              <tr><td>DDR3/MIG</td><td><code>ui_clk</code></td><td><code>ui_clk</code></td><td>ADC大容量缓存</td></tr>
+              <tr><td><code>fifo_generator_9</code></td><td><code>ui_clk</code></td><td><code>eth_clk</code></td><td>64-bit到8-bit发包桥</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    const nodeInfo = {
+      pc: {
+        title: "PC上位机",
+        type: "外部控制与接收端",
+        summary: "通过 UDP 32000 写/读控制寄存器，通过 UDP 32001 接收 ADC 数据回传。",
+        tags: ["UDP 32000", "UDP 32001", "寄存器协议"],
+        input: "用户配置、读寄存器请求",
+        output: "写包、读包；接收读回包和ADC数据包",
+        evidence: "DL4文档：payload格式；DL2文档：UDP 32001"
+      },
+      ethernet: {
+        title: "ETHERNET_TOP",
+        type: "以太网控制面和数据面入口",
+        summary: "同时承载寄存器读写、ADC数据上传和remote数据。寄存器端口是 0x7D00，ADC上传端口是 0x7D01。",
+        tags: ["SGMII", "ETH_LAN_RX", "LAN_TX_MUX"],
+        input: "SGMII RX、ADC payload、读回payload",
+        output: "WR_REG/RD_REG、remote_*、tx_axis_fifo_*",
+        evidence: "ETHERNET_TOP.v:140-147, 268-360"
+      },
+      regParser: {
+        title: "WR_RD_REG_TOP / LAN_WR_REG",
+        type: "UDP payload到寄存器命令",
+        summary: "只解析 LAN_RX_TYPE=1 的payload。写包产生一拍 WR_REG_VALID，读包产生一拍 RD_REG_VALID。",
+        tags: ["WR_REG_VALID", "RD_REG_VALID", "55 55 AA AA"],
+        input: "lan_data_valid + lan_data[7:0]",
+        output: "WR_REG_ADDR/DATA，RD_REG_ADDR",
+        evidence: "WR_RD_REG_TOP.v:44-75, LAN_WR_REG.v:144-184"
+      },
+      command: {
+        title: "command_monitor_new",
+        type: "控制参数集中解码",
+        summary: "把上位机地址和32-bit数据翻译成DL1/DL2/DL3的控制参数。这里是理解全工程参数流的核心。",
+        tags: ["eth_clk", "0x0002", "0x0009", "0x0200风险"],
+        input: "WR_REG_VALID/ADDR/DATA，RD_REG_VALID/ADDR",
+        output: "dac_sample、adc_sample、image_row、scan_state、ultrafast_mode等",
+        evidence: "command_monitor_new.v:191-281, 293-318"
+      },
+      dacCfg: {
+        title: "dacdata_config",
+        type: "DL1参数消费者",
+        summary: "接收扫描参数并例化 parameter_dacdata_gen 和 dac_output。scan_state上升沿会触发下游复位窗口。",
+        tags: ["dac_sample", "scan_state", "TRIGGER_IN"],
+        input: "dacx/dacy起止电平、row_m/n、sync宽度、ultrafast_mode",
+        output: "35-bit参数流写入dac_output",
+        evidence: "DL1文档：dacdata_config.v 章节"
+      },
+      adcCfg: {
+        title: "adcdata_config",
+        type: "DL2参数消费者和装配层",
+        summary: "把4路ADC采集、通道聚合、DDR写读和以太网发包串起来，控制参数决定采样窗口、通道和回传长度。",
+        tags: ["adc_sample", "adc_channel", "image_column", "ultrafast"],
+        input: "4路ADC数据和DCO，adc_tri，DL4控制参数",
+        output: "pkg1_wr_*、data_tx_data/data_tx_valid",
+        evidence: "adcdata_config.v:137-280"
+      },
+      remote: {
+        title: "ddr3_ctrl",
+        type: "DL3 remote支撑链路",
+        summary: "remote数据写入DDR后再给multiboot/QSPI。DL4对它的直接控制主要是 remote_rstn。",
+        tags: ["remote_rstn", "pkg_*", "QSPI"],
+        input: "remote_wr_en/remote_wr_data/remote_rstn",
+        output: "pkg_wr/pkg_rd，data_in给multiboot",
+        evidence: "ETH_TOP.v:687-714"
+      },
+      offset: {
+        title: "FRAM / offset DAC",
+        type: "模拟偏置支撑",
+        summary: "offset寄存器先进入FRAM保存/读取，再由offset_dac_cfg输出到板级偏置DAC/I2C。",
+        tags: ["0x0010", "0x0011", "0x0012", "wr_offset_flag"],
+        input: "offset_adc1_adc2、offset_adc3_adc4、offset_dacx_dacy",
+        output: "ADC/DAC偏置配置",
+        evidence: "ETH_TOP.v:772-822"
+      },
+      registers: {
+        title: "控制寄存器组",
+        type: "参数源",
+        summary: "这些寄存器共同定义扫描尺寸、采样节奏、DAC轨迹、ADC通道和快速模式。",
+        tags: ["0x0001", "0x0002", "0x0004", "0x0009", "0x0202"],
+        input: "PC写包",
+        output: "参数影子寄存器",
+        evidence: "DL4写寄存器主表"
+      },
+      paramGen: {
+        title: "parameter_dacdata_gen",
+        type: "DAC扫描波形核心",
+        summary: "14状态FSM预计算扫描过程中每一拍的DAX、DAY、adc_tri、sync1、sync2，打成35-bit参数流。",
+        tags: ["35-bit", "DAX/DAY", "adc_tri", "Q16.48"],
+        input: "扫描参数、row_repeat、row_m/n、FIFO反压",
+        output: "{sync2,sync1,adc_tri,DAX,DAY}",
+        evidence: "parameter_dacdata_gen.v:119, DL1文档"
+      },
+      dacFifo: {
+        title: "fifo_generator_4",
+        type: "DAC参数CDC缓存",
+        summary: "把 eth_clk 域预计算出来的35-bit参数流跨到 dac_dco 域。写快读慢，prog_full会反压生成器。",
+        tags: ["eth_clk", "dac_dco", "35-bit FIFO"],
+        input: "para_config_wr_en + para_config_data",
+        output: "para_config_dout",
+        evidence: "dac_output.v:FIFO例化，DL1文档"
+      },
+      dacOutput: {
+        title: "dac_output",
+        type: "DAC输出锁存与同步脉冲",
+        summary: "在dac_dco域拆出DAX/DAY/adc_tri；sync1/sync2再进入ui_clk域做延时和宽度整形。",
+        tags: ["DAX_DATA", "DAY_DATA", "adc_tri", "sync"],
+        input: "35-bit FIFO dout",
+        output: "DAX/DAY到AD9747，adc_tri到ADC，TRIGGER_OUT/TRIG_BLANK",
+        evidence: "dac_output.v:206-207, 335, 432"
+      },
+      ad9747: {
+        title: "AD9747",
+        type: "物理DAC输出",
+        summary: "顶层将内部 DAX/DAY 做 65535-data 互补映射后输出到 AD9747 并行口。",
+        tags: ["dac_p1d", "dac_p2d", "16-bit"],
+        input: "DAX_DATA/DAY_DATA",
+        output: "模拟扫描偏转",
+        evidence: "ETH_TOP.v:594-595"
+      },
+      triggerOut: {
+        title: "TRIGGER_OUT / TRIG_BLANK",
+        type: "外部同步输出",
+        summary: "sync_pixel_tri2 接到 TRIGGER_OUT；sync_pixel_tri1 接到 TRIG_BLANK，sync1最终为低有效输出。",
+        tags: ["sync1", "sync2", "ultrafast_mode"],
+        input: "dac_output sync整形状态机",
+        output: "外部触发/束闸相关管脚",
+        evidence: "ETH_TOP.v:531, 847; dac_output.v:335, 432"
+      },
+      ad9258: {
+        title: "2x AD9258",
+        type: "ADC物理输入",
+        summary: "两片AD9258提供4路并行数据。顶层只取每路[15:2]进入数字链路，等价于14-bit有效样本。",
+        tags: ["4 channels", "14-bit", "adc_dco"],
+        input: "模拟信号",
+        output: "adc1_da/db, adc2_da/db + DCO",
+        evidence: "ETH_TOP.v:542-545, DL2文档"
+      },
+      adcAcq: {
+        title: "adcdata_acq x4",
+        type: "单通道采样和平均",
+        summary: "每路在自己的adc_dco域被adc_tri触发，按adc_sample求平均，通过FIFO跨到ui_clk。ultrafast_mode会改变采样窗口和行计数。",
+        tags: ["adc_tri", "adc_sample", "fifo_generator_1"],
+        input: "16-bit补零样本、adc_tri、采样参数",
+        output: "16-bit平均点、line_count",
+        evidence: "adcdata_acq.v:107, 243, DL2文档"
+      },
+      adcGet: {
+        title: "adcdata_get",
+        type: "多通道聚合",
+        summary: "根据adc_channel选择1/2/4路，把若干16-bit平均点组合成统一的64-bit写DDR合同。",
+        tags: ["adc_channel", "64-bit", "div_adc_rd_en"],
+        input: "div_adc1-4_out",
+        output: "adc_data_mix_wr_en + adc_data_mix[63:0]",
+        evidence: "adcdata_get.v，DL2文档"
+      },
+      fdmaWrite: {
+        title: "fdma_controller1_write",
+        type: "ADC写DDR控制",
+        summary: "把64-bit ADC包缓存在FIFO里，通常凑够128个64-bit beat后发起一次1024字节DDR写burst。",
+        tags: ["pkg1_wr_*", "128 beat", "1024 byte"],
+        input: "adc_data_mix_wr_en + adc_data_mix",
+        output: "pkg1_wr_areq/en/last/addr/data",
+        evidence: "fdma_controller1_write.v:36-111"
+      },
+      ddr3: {
+        title: "MIG DDR3 / MSXBO_FDMA_1",
+        type: "ADC大容量缓存",
+        summary: "DL2专用FDMA master访问MIG DDR3。DDR只是中转，不改变ADC数据语义。",
+        tags: ["ui_clk", "AXI", "pkg1_rd_*"],
+        input: "pkg1_wr_*",
+        output: "pkg1_rd_*",
+        evidence: "system.bd / DL2文档第七步"
+      },
+      lanFrame: {
+        title: "LAN_TX_FREAME",
+        type: "DDR到UDP payload桥",
+        summary: "把DDR读出的64-bit ADC数据写入64到8的FIFO，在eth_clk域加应用头并通过data_req/data_ACK请求以太网发送。",
+        tags: ["fifo_generator_9", "AA55", "CC55", "32001"],
+        input: "pkg_rd_en + pkg_rd_data",
+        output: "data_tx_data + data_tx_valid",
+        evidence: "LAN_TX_FREAME.v:72-320"
+      }
+    };
+
+    const inspector = document.getElementById("inspector");
+    const svg = document.getElementById("flowSvg");
+    const motionToggle = document.getElementById("motionToggle");
+
+    function renderInspector(key) {
+      const info = nodeInfo[key] || nodeInfo.command;
+      inspector.innerHTML = `
+        <p class="eyebrow">${info.type}</p>
+        <h2>${info.title}</h2>
+        <p class="summary">${info.summary}</p>
+        <div class="chips">${info.tags.map(tag => `<span class="chip">${tag}</span>`).join("")}</div>
+        <div class="meta-list">
+          <div class="meta-item"><b>输入</b><span>${info.input}</span></div>
+          <div class="meta-item"><b>输出</b><span>${info.output}</span></div>
+          <div class="meta-item"><b>证据</b><span>${info.evidence}</span></div>
+        </div>
+      `;
+    }
+
+    document.querySelectorAll(".node").forEach(node => {
+      node.addEventListener("click", () => {
+        document.querySelectorAll(".node.selected").forEach(n => n.classList.remove("selected"));
+        node.classList.add("selected");
+        renderInspector(node.dataset.key);
+      });
+    });
+
+    document.querySelectorAll("[data-view]").forEach(button => {
+      button.addEventListener("click", () => {
+        const view = button.dataset.view;
+        document.body.dataset.view = view;
+        document.querySelectorAll("[data-view]").forEach(b => b.classList.remove("active"));
+        button.classList.add("active");
+      });
+    });
+
+    motionToggle.addEventListener("change", () => {
+      document.body.classList.toggle("paused", !motionToggle.checked);
+      if (motionToggle.checked && svg.unpauseAnimations) {
+        svg.unpauseAnimations();
+      } else if (svg.pauseAnimations) {
+        svg.pauseAnimations();
+      }
+    });
+
+    const initial = document.querySelector('[data-key="command"]');
+    if (initial) initial.classList.add("selected");
+  </script>
+</body>
+</html>

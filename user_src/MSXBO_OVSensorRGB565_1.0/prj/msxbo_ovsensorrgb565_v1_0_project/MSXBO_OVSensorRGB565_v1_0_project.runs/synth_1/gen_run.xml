@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GenRun Id="synth_1" LaunchPart="xc7a100tfgg484-2" LaunchTime="1553847763">
+  <File Type="PA-TCL" Name="MSXBO_OVSensorRGB565.tcl"/>
+  <File Type="RDS-PROPCONSTRS" Name="MSXBO_OVSensorRGB565_drc_synth.rpt"/>
+  <File Type="REPORTS-TCL" Name="MSXBO_OVSensorRGB565_reports.tcl"/>
+  <File Type="RDS-RDS" Name="MSXBO_OVSensorRGB565.vds"/>
+  <File Type="RDS-UTIL" Name="MSXBO_OVSensorRGB565_utilization_synth.rpt"/>
+  <File Type="RDS-UTIL-PB" Name="MSXBO_OVSensorRGB565_utilization_synth.pb"/>
+  <File Type="RDS-DCP" Name="MSXBO_OVSensorRGB565.dcp"/>
+  <File Type="VDS-TIMINGSUMMARY" Name="MSXBO_OVSensorRGB565_timing_summary_synth.rpt"/>
+  <File Type="VDS-TIMING-PB" Name="MSXBO_OVSensorRGB565_timing_summary_synth.pb"/>
+  <FileSet Name="sources" Type="DesignSrcs" RelSrcDir="$PSRCDIR/sources_1">
+    <Filter Type="Srcs"/>
+    <File Path="$PPRDIR/../../../../../../../../MA703/A703_100T/07/AXI_DDR_5640/user_src/MSXBO_OVSensorRGB565_1.0/IPSRC/MSXBO_OVSensorRGB565.v">
+      <FileInfo>
+        <Attr Name="UsedIn" Val="synthesis"/>
+        <Attr Name="UsedIn" Val="simulation"/>
+      </FileInfo>
+    </File>
+    <File Path="$PPRDIR/../../../../../../../../MA703/A703_100T/07/AXI_DDR_5640/user_src/MSXBO_OVSensorRGB565_1.0/IPSRC/component.xml">
+      <FileInfo SFType="IPXACT"/>
+    </File>
+    <Config>
+      <Option Name="DesignMode" Val="RTL"/>
+      <Option Name="TopModule" Val="MSXBO_OVSensorRGB565"/>
+      <Option Name="TopRTLFile" Val="$PPRDIR/../../../../../../../../MA703/A703_100T/07/AXI_DDR_5640/user_src/MSXBO_OVSensorRGB565_1.0/IPSRC/MSXBO_OVSensorRGB565.v"/>
+    </Config>
+  </FileSet>
+  <FileSet Name="constrs_in" Type="Constrs" RelSrcDir="$PSRCDIR/constrs_1">
+    <Filter Type="Constrs"/>
+    <Config>
+      <Option Name="ConstrsType" Val="XDC"/>
+    </Config>
+  </FileSet>
+  <Strategy Version="1" Minor="2">
+    <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2017">
+      <Desc>Vivado Synthesis Defaults</Desc>
+    </StratHandle>
+    <Step Id="synth_design"/>
+  </Strategy>
+</GenRun>

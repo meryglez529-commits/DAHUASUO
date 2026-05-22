@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<Runs Version="1" Minor="0">
+	<Run Id="synth_1" LaunchDir="F:/MZ7015FA/XMDA_LINUX/CH09_OV56402PC/FPGA/pcie_system/user_src/OV5640_IIC/prj/OV5640_IIC.runs/synth_1" FlowId="Vivado_Synthesis" FromStepId="vivado" ToStepId="vivado"/>
+</Runs>
+

@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit(~/.claude/skills/fpga-project-reader/**)",
+      "Bash(set TMP_AI=C:\\\\Users\\\\XF\\\\AppData\\\\Local\\\\Temp\\\\ai-work-test-good)",
+      "Bash(rmdir /S /Q \"%TMP_AI%\")",
+      "Bash(mkdir \"%TMP_AI%\\\\guide\\\\data-paths\")",
+      "Bash(mkdir \"%TMP_AI%\\\\guide\\\\diagrams\")",
+      "Bash(mkdir \"%TMP_AI%\\\\annotations\")"
+    ]
+  }
+}
