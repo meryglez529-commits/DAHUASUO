@@ -4,6 +4,24 @@
 
 | 编号 | 提出时间 | 来源 mode | 问题 | 状态 | 解决依据 |
 |---|---|---|---|---|---|
+| Q1 | 2026-05-22 | cowork-setup | AD9258 实际采样率？（DL2 推测 ~50 MSPS） | open | |
+| Q2 | 2026-05-22 | cowork-setup | DDR3 颗粒型号？（型号 / 速率 / 位宽） | open | |
+| Q3 | 2026-05-22 | cowork-setup | SGMII Ethernet PHY 芯片型号？ | open | |
+| Q4 | 2026-05-22 | cowork-setup | QSPI Flash 容量与型号？ | open | |
+| Q5 | 2026-05-22 | cowork-setup | FRAM 容量与型号？ | open | |
+| Q6 | 2026-05-22 | cowork-setup | 偏置 DAC 型号？（offset_cfg / offset_dac_cfg 控制的器件） | open | |
+| Q7 | 2026-05-22 | cowork-setup | OV5640 摄像头在本工程是辅助/调试还是主功能？ | open | |
+| Q8 | 2026-05-22 | cowork-setup | `eth_clk` 实际频率（从 TEMAC 用户时钟输出，DL1/PROJECT_GUIDE 推测 125 MHz） | open | |
+| Q9 | 2026-05-22 | cowork-setup | SGMII_TEMAC / SGMII_PHY 的 license 状态（Step 6 跑 check_env.tcl 时验证） | resolved | `AI-work/sim_out/check_env.log` 14:59 跑 PASS：SGMII_TEMAC (tri_mode_ethernet_mac:9.0) OK；SGMII_PHY (gig_ethernet_pcs_pma:16.2) OK |
+| Q10 | 2026-05-22 | cowork-setup | DAC 焦点细节：当前现象、期望、复现条件 | open | 等用户补充 FOCUS.md |
+| Q11 | 2026-05-22 | cowork-setup | `AXI_DDR.srcs/parameter_dacdata_gen_old.v` 是手动备份还是无用文件？要不要清理 / 加 .gitignore？ | open | |
+| Q12 | 2026-05-22 | DL5-design | sync_pixel_tri2 在新模式具体输出什么？当前定为 `laser_event_busy`（BUSY 期间为高）。如果外设其实需要 acq 起止脉冲，再改 mux | open | 等用户实际接外设确认 |
+| Q13 | 2026-05-22 | DL5-design | `blanker_end ≤ laser_period` 和 `acq_end ≤ laser_period` 是否要 FPGA 防呆？目前不做 | resolved | v3 拍板：上位机保证，FPGA 不做 |
+| Q14 | 2026-05-22 | DL5-design | dac_output.v 在 State 3 只写 1 个 FIFO word 时是否能保持 DAC 电平？ | resolved | 读 dac_output.v:212-217 确认：`para_config_rd_en=0` 时 DAX/DAY 自保持。新模式用 `laser_pixel_written` one-shot 标志写 1 word 后停 wr_en 即可 |
+| Q15 | 2026-05-22 | DL5-v3 | DL5 用 ui_clk 还是 clk200m？ | resolved | v3 拍板：`ui_clk`（dacdata_config 现有端口，零成本） |
+| Q16 | 2026-05-22 | DL5-v3 | blanker 输出极性 | resolved | v3 拍板：与现有 sync_pixel_tri1 一致 = 物理引脚低有效，mux 复用现有 ~ 取反路径 |
+| Q17 | 2026-05-22 | DL5-v3 | DL5 `acq_data_delay_time` 是否复用 0x0201 `adc_acq_delay`？ | resolved | v3 拍板：功能不同（一个在 ui_clk 域控制 adc_tri 产生延时，一个在 adc_dco 域控制 ADC 内部死区），新建独立寄存器 0x0208 |
+| Q18 | 2026-05-22 | DL5-v3 | `command_monitor_new.v` 已有 0x0200 case 重复 bug（sync2_pixel_tri_wigth 不可达），DL5 实现时顺手修不修？ | open | 先不动，避免 DL5 改动面太广；后续单独提 PR |
 
 ## 处理约定
 
