@@ -94,20 +94,7 @@ module command_monitor_new(
     output reg            ultrafast_mode,
     output reg  [15:0]    sync_sig_delay1,
     output reg  [15:0]    sync_sig_delay2,
-    output reg  [31:0]    acq_dead_time,
-
-    // DL5（v3）：飞秒激光同步采集模式 6 个新寄存器
-    //   地址 0x0205~0x020A，接续现有 0x0200~0x0204 扩展段。
-    //   单位与含义详见 AI-work/guide/data-paths/DL5_LASER_SYNC_MODE_DESIGN.md §5.4。
-    //   注意 acq_data_delay_time 和现有 0x0201 adc_acq_delay 是两个独立信号：
-    //     adc_acq_delay        : adc_dco 域，控制 ADC 平均流水线内的死区/state 1 等待
-    //     acq_data_delay_time  : ui_clk  域，控制 adc_tri 信号本身的产生延时
-    output reg            laser_mode_en,         // 0x0205[0]
-    output reg  [15:0]    blanker_delay_time,    // 0x0206[15:0]   ui_clk 拍 (5ns)
-    output reg  [15:0]    blanker_time,          // 0x0207[15:0]   ui_clk 拍 (5ns)
-    output reg  [15:0]    acq_data_delay_time,   // 0x0208[15:0]   20ns 步进
-    output reg  [15:0]    acq_time,              // 0x0209[15:0]   20ns 步进
-    output reg  [31:0]    laser_period,          // 0x020A[31:0]   ui_clk 拍 (5ns)
+    output reg  [31:0]    acq_dead_time,   
 
     output  reg [31:0]  pc_ack_r
     );
@@ -198,14 +185,6 @@ begin
         sync_sig_delay1    <= 16'd0;
         sync_sig_delay2    <= 16'd0;
         acq_dead_time      <= 32'd0;
-        // DL5（v3）：复位默认 laser 模式关闭，时间参数全 0；
-        //   laser_period 默认给 400 (=2us, 500KHz 激光)，避免上位机忘写时 BUSY 一拍就 DONE
-        laser_mode_en       <= 1'b0;
-        blanker_delay_time  <= 16'd0;
-        blanker_time        <= 16'd0;
-        acq_data_delay_time <= 16'd0;
-        acq_time            <= 16'd0;
-        laser_period        <= 32'd400;
         // 以下 flag 都是“一拍事件”，复位时清 0，避免消费者误认为还有新命令。
         wr_offset_flag      <= 1'b0;
         dacx_step_flag      <= 1'b0; 
@@ -355,36 +334,14 @@ begin
                             sync_sig_delay1    <= wr_reg_data[31:16];
                             sync_sig_delay2    <= wr_reg_data[15:0]; 
                       end
-            16'h0204: begin
+            16'h0204: begin 
                             acq_dead_time      <= wr_reg_data[31:0];
-                      end
+                      end  
             // 风险点：与上面的 0x0200 重复。若协议需要独立配置 sync2 宽度，应和上位机协议核对地址。
-            16'h0200:begin
-                            sync2_pixel_tri_wigth <= wr_reg_data[15:0];
-                      end
-            // DL5（v3）：飞秒激光同步采集模式 6 个新寄存器（0x0205~0x020A）
-            //   单位与含义详见 DL5_LASER_SYNC_MODE_DESIGN.md §5.4
-            //   上位机约束：laser_mode_en 只在 scan_state=0 时切换；
-            //               时间参数写完后等 ~3 个 ui_clk 拍稳定后再开 mode_en
-            16'h0205: begin
-                            laser_mode_en       <= wr_reg_data[0];
-                      end
-            16'h0206: begin
-                            blanker_delay_time  <= wr_reg_data[15:0];
-                      end
-            16'h0207: begin
-                            blanker_time        <= wr_reg_data[15:0];
-                      end
-            16'h0208: begin
-                            acq_data_delay_time <= wr_reg_data[15:0];
-                      end
-            16'h0209: begin
-                            acq_time            <= wr_reg_data[15:0];
-                      end
-            16'h020A: begin
-                            laser_period        <= wr_reg_data[31:0];
-                      end
-            default:  begin
+            16'h0200:begin 
+                            sync2_pixel_tri_wigth <= wr_reg_data[15:0]; 
+                      end         
+            default:  begin 
                             wr_offset_flag      <= 1'b0;  
                             dacx_step_flag      <= 1'b0; 
                             dacy_step_flag      <= 1'b0;
@@ -439,13 +396,6 @@ begin
         16'h0012: begin rd_reg_data <= offset_dacx_dacy; end
         16'h0013: begin rd_reg_data <= {16'd0,row_repeat}; end
         16'h0014: begin rd_reg_data <= {row_m,row_n}; end
-        // DL5（v3）：6 个新寄存器读回（方便上位机参数回读校验）
-        16'h0205: begin rd_reg_data <= {31'd0, laser_mode_en};       end
-        16'h0206: begin rd_reg_data <= {16'd0, blanker_delay_time};  end
-        16'h0207: begin rd_reg_data <= {16'd0, blanker_time};        end
-        16'h0208: begin rd_reg_data <= {16'd0, acq_data_delay_time}; end
-        16'h0209: begin rd_reg_data <= {16'd0, acq_time};            end
-        16'h020A: begin rd_reg_data <= laser_period;                 end
         default:  begin rd_reg_data <= 32'h11223344; end
         endcase
     else        

@@ -67,17 +67,6 @@
     input    clk_sel,                   // 1=每行扫描前等 TRIGGER_IN 上升沿才启动；0=自由运行
     input    TRIGGER_IN,                // 外部触发输入（异步，本模块负责同步进 eth_clk）
 
-    // ─── DL5 飞秒激光同步采集模式（v3）─────────────────────────────────────────
-    //   全部 7 个新输入。前 6 个是 eth_clk 域寄存器（来自 command_monitor_new），
-    //   laser_sync_in 是外部异步信号（来自顶层 ETH_TOP 直通），本模块内做 CDC。
-    input           laser_mode_en,           // 1=启用激光同步采集
-    input [15:0]    blanker_delay_time,      // ui_clk 拍 (5ns)
-    input [15:0]    blanker_time,            // ui_clk 拍 (5ns)
-    input [15:0]    acq_data_delay_time,     // 20ns 步进
-    input [15:0]    acq_time,                // 20ns 步进
-    input [31:0]    laser_period,            // ui_clk 拍 (5ns)
-    input           laser_sync_in,           // 外部 2.5V TTL 异步脉冲
-
     // ─── 输出（最终送到 ETH_TOP 顶层 → AD9747 / ADC 触发 / 同步连接器）─────────
     output          adc_tri,            // ADC 采集触发：每个像素 dac_sample 拍期间为 1（DL1→DL2 唯一交汇点）
     output          sync_pixel_tri1,    // 同步脉冲 1（超快模式才输出，低电平有效，已取反）
@@ -144,122 +133,7 @@ begin
 end
 wire  TRIGGER_IN_Rise;
 assign  TRIGGER_IN_Rise = ((!TRIGGER_IN_r1)&&TRIGGER_IN_r0);
-
-// ═════════════════════════════════════════════════════════════════════════════
-//  DL5（v3）：飞秒激光同步采集模式的 CDC 与子模块例化
-//
-//  本段处理 5 类跨域：
-//    1) eth_rstn -> ui_clk 域复位（sync_module，3 级 FF）
-//    2) eth_clk -> ui_clk 的 7 个静态/慢变信号：laser_mode_en、scan_state 和 6 个时间参数（双 FF）
-//    3) 外部异步 laser_sync_in：在 laser_sync_blanker_ctrl 内部做 3 级 FF + 边沿检测
-//    4) ui_clk -> eth_clk 单拍 pixel_done_pulse_ui（toggle-FF 同步器）
-//    5) laser_mode_en_ui 同时送 laser_sync_blanker_ctrl 和 dac_output（同一份 ui_clk 域信号）
-//
-//  设计文档：AI-work/guide/data-paths/DL5_LASER_SYNC_MODE_DESIGN.md
-// ═════════════════════════════════════════════════════════════════════════════
-
-// ── (1) ui_rstn_dl5：eth_rstn -> ui_clk 域 ──
-wire ui_rstn_dl5;
-sync_module rstn_sync_dl5(.data_in(eth_rstn), .clk_in(ui_clk), .data_out(ui_rstn_dl5));
-
-// ── (2) eth_clk -> ui_clk：mode_en + scan_state + 6 个时间参数 ──
-// 静态/慢变多 bit 信号用双 FF。所有寄存器都加 ASYNC_REG 属性帮助综合工具
-// 在第一级附近布线 + 抑制 timing 检查（同时配合 set_max_delay datapath_only）。
-(* ASYNC_REG = "TRUE" *) reg          laser_mode_en_ui_r0;
-(* ASYNC_REG = "TRUE" *) reg          laser_mode_en_ui;
-(* ASYNC_REG = "TRUE" *) reg          scan_state_ui_r0;
-(* ASYNC_REG = "TRUE" *) reg          scan_state_ui;
-(* ASYNC_REG = "TRUE" *) reg [15:0]   blanker_delay_time_ui_r0;
-(* ASYNC_REG = "TRUE" *) reg [15:0]   blanker_delay_time_ui;
-(* ASYNC_REG = "TRUE" *) reg [15:0]   blanker_time_ui_r0;
-(* ASYNC_REG = "TRUE" *) reg [15:0]   blanker_time_ui;
-(* ASYNC_REG = "TRUE" *) reg [15:0]   acq_data_delay_time_ui_r0;
-(* ASYNC_REG = "TRUE" *) reg [15:0]   acq_data_delay_time_ui;
-(* ASYNC_REG = "TRUE" *) reg [15:0]   acq_time_ui_r0;
-(* ASYNC_REG = "TRUE" *) reg [15:0]   acq_time_ui;
-(* ASYNC_REG = "TRUE" *) reg [31:0]   laser_period_ui_r0;
-(* ASYNC_REG = "TRUE" *) reg [31:0]   laser_period_ui;
-
-always @(posedge ui_clk or negedge ui_rstn_dl5) begin
-    if(!ui_rstn_dl5) begin
-        laser_mode_en_ui_r0       <= 1'b0;
-        laser_mode_en_ui          <= 1'b0;
-        scan_state_ui_r0          <= 1'b0;
-        scan_state_ui             <= 1'b0;
-        blanker_delay_time_ui_r0  <= 16'd0;
-        blanker_delay_time_ui     <= 16'd0;
-        blanker_time_ui_r0        <= 16'd0;
-        blanker_time_ui           <= 16'd0;
-        acq_data_delay_time_ui_r0 <= 16'd0;
-        acq_data_delay_time_ui    <= 16'd0;
-        acq_time_ui_r0            <= 16'd0;
-        acq_time_ui               <= 16'd0;
-        laser_period_ui_r0        <= 32'd0;
-        laser_period_ui           <= 32'd0;
-    end
-    else begin
-        laser_mode_en_ui_r0       <= laser_mode_en;
-        laser_mode_en_ui          <= laser_mode_en_ui_r0;
-        scan_state_ui_r0          <= scan_state;
-        scan_state_ui             <= scan_state_ui_r0;
-        blanker_delay_time_ui_r0  <= blanker_delay_time;
-        blanker_delay_time_ui     <= blanker_delay_time_ui_r0;
-        blanker_time_ui_r0        <= blanker_time;
-        blanker_time_ui           <= blanker_time_ui_r0;
-        acq_data_delay_time_ui_r0 <= acq_data_delay_time;
-        acq_data_delay_time_ui    <= acq_data_delay_time_ui_r0;
-        acq_time_ui_r0            <= acq_time;
-        acq_time_ui               <= acq_time_ui_r0;
-        laser_period_ui_r0        <= laser_period;
-        laser_period_ui           <= laser_period_ui_r0;
-    end
-end
-
-// ── 例化 laser_sync_blanker_ctrl（ui_clk 域）──
-wire blanker_pulse_ui;
-wire laser_acq_pulse_ui;
-wire laser_event_busy_ui;
-wire pixel_done_pulse_ui;
-laser_sync_blanker_ctrl laser_ctrl_i(
-    .ui_clk                 (ui_clk),
-    .rstn                   (ui_rstn_dl5),
-    .laser_mode_en          (laser_mode_en_ui),
-    .scan_state             (scan_state_ui),
-    .blanker_delay_time     (blanker_delay_time_ui),
-    .blanker_time           (blanker_time_ui),
-    .acq_data_delay_time    (acq_data_delay_time_ui),
-    .acq_time               (acq_time_ui),
-    .laser_period           (laser_period_ui),
-    .laser_sync_in          (laser_sync_in),
-    .blanker_pulse          (blanker_pulse_ui),
-    .laser_acq_pulse        (laser_acq_pulse_ui),
-    .laser_event_busy       (laser_event_busy_ui),
-    .pixel_done_pulse_ui    (pixel_done_pulse_ui)
-    );
-
-// ── (4) pixel_done_pulse_ui (ui_clk) -> pixel_done_pulse_eth (eth_clk) ──
-// toggle-FF 脉冲同步器：ui_clk 侧每收到 1 拍 pulse 翻转一次 toggle；
-// eth_clk 侧 3 级 FF 同步后做异或得到 1 拍 pulse。
-// 适用条件：pulse 间隔 >= 3 个 eth_clk 周期；DL5 中相邻 pulse 间隔 ~ laser_period
-// (典型 500KHz=2us=250 个 eth_clk @125MHz)，远满足。
-reg                                  pixel_done_toggle_ui;
-(* ASYNC_REG = "TRUE" *) reg [2:0]   pixel_done_toggle_eth;
-wire                                 pixel_done_pulse_eth;
-always @(posedge ui_clk or negedge ui_rstn_dl5) begin
-    if(!ui_rstn_dl5)
-        pixel_done_toggle_ui <= 1'b0;
-    else if(pixel_done_pulse_ui)
-        pixel_done_toggle_ui <= ~pixel_done_toggle_ui;
-end
-always @(posedge eth_clk or negedge eth_rstn) begin
-    if(!eth_rstn)
-        pixel_done_toggle_eth <= 3'd0;
-    else
-        pixel_done_toggle_eth <= {pixel_done_toggle_eth[1:0], pixel_done_toggle_ui};
-end
-assign pixel_done_pulse_eth = pixel_done_toggle_eth[2] ^ pixel_done_toggle_eth[1];
-
-//-------------------------------------------------------------------
+//------------------------------------------------------------------- 
 wire        para_config_wr_en;
 wire [34:0] para_config_data;
 wire        para_config_prog_full;
@@ -286,12 +160,9 @@ parameter_dacdata_gen N1(
     .row_n                  (row_n),
     .clk_sel								( clk_sel),
     
-    .TRIGGER_IN							(TRIGGER_IN_Rise),
-    .ultrafast_mode         (ultrafast_mode),
+    .TRIGGER_IN							(TRIGGER_IN_Rise),  
+    .ultrafast_mode         (ultrafast_mode), 
     .ultrafast_line_rec     (ultrafast_line_rec),
-    // DL5: laser 模式控制 + pixel_done 反馈（已 ui_clk -> eth_clk 同步）
-    .laser_mode_en          (laser_mode_en),
-    .pixel_done_pulse       (pixel_done_pulse_eth),
     .para_config_wr_en      (para_config_wr_en),
     .para_config_data       (para_config_data),
     .para_config_prog_full  (para_config_prog_full),
@@ -311,12 +182,6 @@ dac_output N2(
     .sync2_pixel_tri_wigth   (sync2_pixel_tri_wigth),
     .sync_sig_delay1        (sync_sig_delay1),
     .sync_sig_delay2        (sync_sig_delay2),
-    // DL5: laser 模式 + 3 路 ui_clk 域脉冲（dac_output 内部会再对 mode_en
-    // 和 acq_pulse 同步到 dac_dco 给 adc_tri mux 用）
-    .laser_mode_en          (laser_mode_en_ui),
-    .blanker_pulse          (blanker_pulse_ui),
-    .laser_acq_pulse        (laser_acq_pulse_ui),
-    .laser_event_busy       (laser_event_busy_ui),
     .DAX_DATA               (DAX_DATA),
     .DAY_DATA               (DAY_DATA),
     .adc_tri                (adc_tri),
@@ -326,6 +191,6 @@ dac_output N2(
     .para_config_data       (para_config_data),
     .para_config_prog_full  (para_config_prog_full),
     .para_config_wr_rst_busy(para_config_wr_rst_busy)
-    );
+    );   
          
 endmodule
