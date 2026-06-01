@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fpga-host"
+version = "0.1.0"
+description = "PySide6/PyQt host app and CLI for SGSC SEM FPGA DL4 control"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+gui = ["PySide6-Essentials>=6.6"]
+test = []
+
+[project.scripts]
+fpga-host = "fpga_host.cli.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

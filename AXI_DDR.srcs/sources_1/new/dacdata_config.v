@@ -67,6 +67,15 @@
     input    clk_sel,                   // 1=每行扫描前等 TRIGGER_IN 上升沿才启动；0=自由运行
     input    TRIGGER_IN,                // 外部触发输入（异步，本模块负责同步进 eth_clk）
 
+    // ─── DL5 激光同步模式参数（来自 PC 寄存器，eth_clk 域）───────────────────
+    input           laser_mode_en,          // 1=激光模式，0=普通模式
+    input   [15:0]  scan_delay_time,        // 8ns 步进 (eth_clk 周期)
+    input   [15:0]  blanker_delay_time,     // 5ns 步进 (ui_clk 周期)
+    input   [15:0]  blanker_time,           // 5ns 步进 (ui_clk 周期)
+    input   [15:0]  acq_data_delay_time,    // 20ns 步进 (dac_dco 周期，内部 <<2 转 ui_clk 拍数)
+    input   [15:0]  acq_time,               // 20ns 步进
+    input           laser_sync_in,          // 异步外部 laser trigger 输入
+
     // ─── 输出（最终送到 ETH_TOP 顶层 → AD9747 / ADC 触发 / 同步连接器）─────────
     output          adc_tri,            // ADC 采集触发：每个像素 dac_sample 拍期间为 1（DL1→DL2 唯一交汇点）
     output          sync_pixel_tri1,    // 同步脉冲 1（超快模式才输出，低电平有效，已取反）
@@ -133,7 +142,24 @@ begin
 end
 wire  TRIGGER_IN_Rise;
 assign  TRIGGER_IN_Rise = ((!TRIGGER_IN_r1)&&TRIGGER_IN_r0);
-//------------------------------------------------------------------- 
+
+//------------------------------------------------------------------------------
+// DL5: laser_sync_in 异步输入 → eth_clk 域 3 级 FF + 上升沿检测
+//
+// laser_sync_in 来自外部激光器的异步 TTL 触发信号，用 3 级 FF（前两级吸收
+// 亚稳态、第三级用于上升沿检测）后产生 1 拍 eth_clk 宽度的 laser_sync_rise_eth
+// 脉冲，送给 parameter_dacdata_gen 的 State 14 触发 toggle 翻转。
+//------------------------------------------------------------------------------
+(* ASYNC_REG = "TRUE" *) reg laser_sync_r0, laser_sync_r1, laser_sync_r2;
+always@(posedge eth_clk or negedge eth_rstn) begin
+    if (!eth_rstn) {laser_sync_r2, laser_sync_r1, laser_sync_r0} <= 3'b0;
+    else           {laser_sync_r2, laser_sync_r1, laser_sync_r0} <= {laser_sync_r1, laser_sync_r0, laser_sync_in};
+end
+wire laser_sync_rise_eth = laser_sync_r1 && ~laser_sync_r2;
+
+// laser_toggle 是 parameter_dacdata_gen 输出，传给 dac_output 做 ui_clk 跨域
+wire laser_toggle;
+//-------------------------------------------------------------------
 wire        para_config_wr_en;
 wire [34:0] para_config_data;
 wire        para_config_prog_full;
@@ -150,7 +176,7 @@ parameter_dacdata_gen N1(
     .dacx_tk_point          (dacx_tk_point),
     .dacx_recovery_time     (dacx_recovery_time),
     .dacy_strat_level       (dacy_strat_level),
-    .dacy_step              (dacy_step),  
+    .dacy_step              (dacy_step),
     .frame_waiting_time     (frame_waiting_time),
     .dax_fall_time          (dax_fall_time_r),
     .dacx_pp_level          (dacx_pp_level),
@@ -159,16 +185,23 @@ parameter_dacdata_gen N1(
     .row_m                  (row_m),
     .row_n                  (row_n),
     .clk_sel								( clk_sel),
-    
-    .TRIGGER_IN							(TRIGGER_IN_Rise),  
-    .ultrafast_mode         (ultrafast_mode), 
+
+    .TRIGGER_IN							(TRIGGER_IN_Rise),
+    .ultrafast_mode         (ultrafast_mode),
     .ultrafast_line_rec     (ultrafast_line_rec),
+
+    // DL5 激光同步模式
+    .laser_mode_en          (laser_mode_en),
+    .laser_sync_rise_eth    (laser_sync_rise_eth),
+    .scan_delay_time        (scan_delay_time),
+    .laser_toggle           (laser_toggle),
+
     .para_config_wr_en      (para_config_wr_en),
     .para_config_data       (para_config_data),
     .para_config_prog_full  (para_config_prog_full),
     .para_config_wr_rst_busy(para_config_wr_rst_busy)
     );
-//--------------------------------------------------------------------   
+//--------------------------------------------------------------------
 dac_output N2(
     .eth_clk                (eth_clk),
     .ui_clk                 (ui_clk),
@@ -190,7 +223,15 @@ dac_output N2(
     .para_config_wr_en      (para_config_wr_en),
     .para_config_data       (para_config_data),
     .para_config_prog_full  (para_config_prog_full),
-    .para_config_wr_rst_busy(para_config_wr_rst_busy)
-    );   
-         
+    .para_config_wr_rst_busy(para_config_wr_rst_busy),
+
+    // DL5 激光同步模式
+    .laser_mode_en          (laser_mode_en),
+    .laser_toggle           (laser_toggle),
+    .blanker_delay_time     (blanker_delay_time),
+    .blanker_time           (blanker_time),
+    .acq_data_delay_time    (acq_data_delay_time),
+    .acq_time               (acq_time)
+    );
+
 endmodule

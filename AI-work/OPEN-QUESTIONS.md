@@ -22,6 +22,7 @@
 | Q16 | 2026-05-22 | DL5-v3 | blanker 输出极性 | resolved | v3 拍板：与现有 sync_pixel_tri1 一致 = 物理引脚低有效，mux 复用现有 ~ 取反路径 |
 | Q17 | 2026-05-22 | DL5-v3 | DL5 `acq_data_delay_time` 是否复用 0x0201 `adc_acq_delay`？ | resolved | v3 拍板：功能不同（一个在 ui_clk 域控制 adc_tri 产生延时，一个在 adc_dco 域控制 ADC 内部死区），新建独立寄存器 0x0208 |
 | Q18 | 2026-05-22 | DL5-v3 | `command_monitor_new.v` 已有 0x0200 case 重复 bug（sync2_pixel_tri_wigth 不可达），DL5 实现时顺手修不修？ | open | 先不动，避免 DL5 改动面太广；后续单独提 PR |
+| Q19 | 2026-05-27 | DL5_UNIT_001 | `laser_sync_in` 的实际 FPGA 引脚号、bank 电压和 XDC IOSTANDARD 怎么定？ | open | 顶层端口已实现，但 `fpga_pin.xdc` 暂未约束，等待硬件确认 |
 
 ## 处理约定
 

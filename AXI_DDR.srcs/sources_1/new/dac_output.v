@@ -42,13 +42,21 @@
     output reg          adc_tri,                 // ADC 有效采样窗口，高电平期间 ADC 链路采集/平均当前 DAC 点。
     output reg          sync_pixel_tri1,         // 外部同步/blank 信号 1，最终低有效：这里会输出 ~sync_pixel_tri1_reg。
     output              sync_pixel_tri2,         // 外部同步/触发信号 2，高有效，顶层接到 TRIGGER_OUT。
-    
+
     // 上游写入的 35-bit 扫描 word，以及返回给上游的 FIFO 写侧流控。
     input               para_config_wr_en,
     input       [34:0]  para_config_data,
     output              para_config_prog_full,
-    output              para_config_wr_rst_busy
-    );      
+    output              para_config_wr_rst_busy,
+
+    // DL5 激光同步模式新增端口
+    input               laser_mode_en,           // eth_clk 域，进来同步到 dac_dco 和 ui_clk
+    input               laser_toggle,            // eth_clk 域 toggle，由 parameter_dacdata_gen 输出
+    input       [15:0]  blanker_delay_time,      // ui_clk 拍数（5ns 步进）
+    input       [15:0]  blanker_time,            // ui_clk 拍数（5ns 步进）
+    input       [15:0]  acq_data_delay_time,     // 上位机配 dac_dco 拍数（20ns 步进），内部 <<2 转 ui_clk 拍
+    input       [15:0]  acq_time                 // 同上
+    );
 
 //------------------------------------------------------------------------------
 // 1. 时钟进入和控制信号同步
@@ -60,10 +68,10 @@
 //------------------------------------------------------------------------------
 wire        dac_dco_bufg;
 BUFG bufg_dco(.O(dac_dco_bufg),.I(dac_dco));
-wire        dac_rstn; 
+wire        dac_rstn;
 wire        ui_rstn;
-sync_module sync1(.data_in(rstn),.clk_in(dac_dco_bufg),.data_out(dac_rstn)); 
-sync_module sync2(.data_in(rstn),.clk_in(ui_clk),.data_out(ui_rstn)); 
+sync_module sync1(.data_in(rstn),.clk_in(dac_dco_bufg),.data_out(dac_rstn));
+sync_module sync2(.data_in(rstn),.clk_in(ui_clk),.data_out(ui_rstn));
 reg [3:0]   scan_mode_r0;
 reg [3:0]   scan_mode_r1;
 always@(posedge dac_dco_bufg or negedge dac_rstn)
@@ -76,7 +84,7 @@ begin
         scan_mode_r0 <= scan_mode;
         scan_mode_r1 <= scan_mode_r0;
     end
-end 
+end
 reg ultrafast_mode_r0;
 reg ultrafast_mode_r1;
 always@(posedge dac_dco_bufg or negedge dac_rstn)
@@ -89,7 +97,50 @@ begin
         ultrafast_mode_r0 <= ultrafast_mode;
         ultrafast_mode_r1 <= ultrafast_mode_r0;
     end
-end 
+end
+
+//------------------------------------------------------------------------------
+// 1.1 DL5 激光同步模式控制信号同步链
+//
+// laser_mode_en 是 eth_clk 域的静态控制位，分别同步到 dac_dco 和 ui_clk 两个域。
+// 配置类静态量（blanker_*, acq_*）只用在 ui_clk 域，做双 FF 同步。
+// laser_toggle 是 eth_clk 域的事件 toggle，3 级 FF + 异或后在 ui_clk 域生成
+// laser_pulse_ui，作为 acq 状态机和 sync1 整形器的共享边沿源。
+//------------------------------------------------------------------------------
+(* ASYNC_REG = "TRUE" *) reg laser_mode_en_d0, laser_mode_en_dac;
+(* ASYNC_REG = "TRUE" *) reg laser_mode_en_u0, laser_mode_en_ui;
+always@(posedge dac_dco_bufg or negedge dac_rstn) begin
+    if(!dac_rstn) {laser_mode_en_dac, laser_mode_en_d0} <= 2'b0;
+    else          {laser_mode_en_dac, laser_mode_en_d0} <= {laser_mode_en_d0, laser_mode_en};
+end
+always@(posedge ui_clk or negedge ui_rstn) begin
+    if(!ui_rstn) {laser_mode_en_ui, laser_mode_en_u0} <= 2'b0;
+    else         {laser_mode_en_ui, laser_mode_en_u0} <= {laser_mode_en_u0, laser_mode_en};
+end
+
+// 上位机配置参数同步到 ui_clk 域（ui_clk 域 acq/blanker 状态机使用）
+(* ASYNC_REG = "TRUE" *) reg [15:0] blanker_delay_d0, blanker_delay_ui;
+(* ASYNC_REG = "TRUE" *) reg [15:0] blanker_time_d0,  blanker_time_ui;
+(* ASYNC_REG = "TRUE" *) reg [15:0] acq_delay_d0,     acq_delay_ui;
+(* ASYNC_REG = "TRUE" *) reg [15:0] acq_time_d0,      acq_time_ui;
+always@(posedge ui_clk) begin
+    {blanker_delay_ui, blanker_delay_d0} <= {blanker_delay_d0, blanker_delay_time};
+    {blanker_time_ui,  blanker_time_d0}  <= {blanker_time_d0,  blanker_time};
+    {acq_delay_ui,     acq_delay_d0}     <= {acq_delay_d0,     acq_data_delay_time};
+    {acq_time_ui,      acq_time_d0}      <= {acq_time_d0,      acq_time};
+end
+
+// laser_toggle 跨域到 ui_clk + 边沿检测（3 级 FF + 异或）
+(* ASYNC_REG = "TRUE" *) reg laser_tog_u0, laser_tog_u1, laser_tog_u2;
+always@(posedge ui_clk or negedge ui_rstn) begin
+    if(!ui_rstn) {laser_tog_u2, laser_tog_u1, laser_tog_u0} <= 3'b0;
+    else         {laser_tog_u2, laser_tog_u1, laser_tog_u0} <= {laser_tog_u1, laser_tog_u0, laser_toggle};
+end
+wire laser_pulse_ui = laser_mode_en_ui && (laser_tog_u2 ^ laser_tog_u1);
+
+// acq_pulse_ui 前向声明：line 257/265 的 adc_tri mux 引用 acq_pulse_ui，
+// 实际驱动逻辑在第 5.5 节 acq 状态机里（避免 Vivado "use before declaration" 警告）
+reg acq_pulse_ui;
 
 //------------------------------------------------------------------------------
 // 2. 35-bit 异步 FIFO：eth_clk -> dac_dco
@@ -132,25 +183,25 @@ fifo_generator_4 fifo_para_config(
 //------------------------------------------------------------------------------
 reg [1:0]   current_state;
 parameter   IDLE = 2'b00;
-parameter   para_config = 2'b01; 
+parameter   para_config = 2'b01;
 always@(posedge dac_dco_bufg or negedge dac_rstn)
 begin
-    if(!dac_rstn) begin 
+    if(!dac_rstn) begin
         current_state           <= IDLE;
         para_config_rd_en       <= 1'b0;
     end
-    else   
+    else
         case (current_state)
-        IDLE: 
+        IDLE:
         begin
             case(scan_mode_r1)
             4'h1:   begin current_state <= para_config;end         // Parameter scan: consume para_config FIFO.
-//          4'h2:   begin current_state <= free1_config; end       
-//          4'h4:   begin current_state <= free2_config; end        
-            default:begin current_state <= IDLE; end        
-            endcase      
-        end    
-        para_config: 
+//          4'h2:   begin current_state <= free1_config; end
+//          4'h4:   begin current_state <= free2_config; end
+            default:begin current_state <= IDLE; end
+            endcase
+        end
+        para_config:
         begin
             current_state           <= para_config;
             if (para_config_prog_empty == 0  && para_config_rd_rst_busy == 0)
@@ -163,7 +214,7 @@ begin
             current_state           <= IDLE;
             para_config_rd_en       <= 1'b0;
         end
-        endcase         
+        endcase
 end
 
 //------------------------------------------------------------------------------
@@ -181,9 +232,9 @@ end
 // 这就是“停止扫描后 DAC 输出保持”的行为。
 // sync1/sync2 还额外要求 ultrafast_mode=1 才放行，普通模式下被屏蔽。
 //------------------------------------------------------------------------------
-reg         para_config_rd_en_r;   
-reg         scan_state_r0;     
-reg         scan_state_r1;  
+reg         para_config_rd_en_r;
+reg         scan_state_r0;
+reg         scan_state_r1;
 reg         sync1_pixel_tri;
 reg         sync2_pixel_tri;
 always@(posedge dac_dco_bufg or negedge dac_rstn)
@@ -203,19 +254,24 @@ begin
         scan_state_r0       <= scan_state;
         scan_state_r1       <= scan_state_r0;
         if(para_config_rd_en_r) begin
-            sync1_pixel_tri      <= (scan_state_r1 && ultrafast_mode_r1) ? para_config_dout[33] : 1'b0;            
+            sync1_pixel_tri      <= (scan_state_r1 && ultrafast_mode_r1) ? para_config_dout[33] : 1'b0;
             sync2_pixel_tri      <= (scan_state_r1 && ultrafast_mode_r1) ? para_config_dout[34] : 1'b0;
-            adc_tri             <= (scan_state_r1) ? para_config_dout[32] : 1'b0;
+            // 激光模式：adc_tri 来自 ui_clk 域 acq 状态机的 acq_pulse_ui（单 FF 采样）
+            // 普通模式：adc_tri 来自 FIFO[32]
+            adc_tri             <= laser_mode_en_dac ? (scan_state_r1 ? acq_pulse_ui : 1'b0)
+                                                     : (scan_state_r1 ? para_config_dout[32] : 1'b0);
             DAX_DATA            <= para_config_dout[31:16];
             DAY_DATA            <= para_config_dout[15:0];
-        end           
+        end
         else begin
-            adc_tri             <= 1'b0;
+            // 激光模式下即使 rd_en_r=0 也要让 adc_tri 跟随 acq_pulse_ui，
+            // 否则 FIFO 排空时 adc_tri 会误清零
+            adc_tri             <= laser_mode_en_dac ? (scan_state_r1 ? acq_pulse_ui : 1'b0) : 1'b0;
             sync1_pixel_tri      <= 1'b0;
             sync2_pixel_tri      <= 1'b0;
             DAX_DATA            <= DAX_DATA;
             DAY_DATA            <= DAY_DATA;
-        end      
+        end
     end
 end
 
@@ -234,17 +290,96 @@ reg sync1_pixel_tri_r0 = 0;
 reg sync1_pixel_tri_r1 = 0;
 always@(posedge ui_clk)begin
     sync1_pixel_tri_r0 <= sync1_pixel_tri;
-    sync1_pixel_tri_r1 <= sync1_pixel_tri_r0; 
-    sync1_pixel_tri_wigth_r <= (sync1_pixel_tri_wigth<<2);  
+    sync1_pixel_tri_r1 <= sync1_pixel_tri_r0;
+    sync1_pixel_tri_wigth_r <= (sync1_pixel_tri_wigth<<2);
 end
+
+//------------------------------------------------------------------------------
+// 5.5 DL5 acq 状态机（ui_clk 域）
+//
+// 与 sync1 整形器并列，共享 laser_pulse_ui 边沿源。检测到边沿后，等
+// acq_data_delay_time × 20ns（内部 <<2 转 ui_clk 拍数）→ 拉高 acq_pulse_ui
+// 并保持 acq_time × 20ns，然后回 IDLE。
+//
+// adc_tri（dac_dco 域）单 FF 采样 acq_pulse_ui：约束 acq_time ≥ 2，使脉宽
+// ≥ 40ns，远大于 dac_dco 周期（20ns），单级寄存器即可恢复亚稳态。
+//------------------------------------------------------------------------------
+reg [31:0] acq_delay_used;
+reg [31:0] acq_time_used;
+always@(posedge ui_clk) begin
+    acq_delay_used <= {14'd0, acq_delay_ui} << 2;   // 20ns 步进 → ui_clk 拍数
+    acq_time_used  <= {14'd0, acq_time_ui}  << 2;
+end
+
+reg [31:0] acq_delay_cnt;
+reg [31:0] acq_time_cnt;
+reg [1:0]  acq_state;
+// acq_pulse_ui 已在 1.1 节前向声明
+parameter ACQ_IDLE  = 2'd0;
+parameter ACQ_DELAY = 2'd1;
+parameter ACQ_HIGH  = 2'd2;
+
+always@(posedge ui_clk or negedge ui_rstn) begin
+    if (!ui_rstn) begin
+        // ui_rstn 来自 dacdata_config 在 scan_state 上升沿产生的 6 拍复位脉冲，
+        // 上位机切换 laser_mode_en 走"停扫描→改模式→开扫描"流程，自动清状态机
+        acq_state     <= ACQ_IDLE;
+        acq_delay_cnt <= 0;
+        acq_time_cnt  <= 0;
+        acq_pulse_ui  <= 0;
+    end
+    else case (acq_state)
+        ACQ_IDLE: begin
+            acq_pulse_ui <= 0;
+            if (laser_pulse_ui) begin
+                acq_delay_cnt <= 0;
+                acq_state     <= (acq_delay_used == 0) ? ACQ_HIGH : ACQ_DELAY;
+            end
+        end
+        ACQ_DELAY: begin
+            if (acq_delay_cnt < acq_delay_used - 1) begin
+                acq_delay_cnt <= acq_delay_cnt + 1'b1;
+            end
+            else begin
+                acq_delay_cnt <= 0;
+                acq_time_cnt  <= 0;
+                acq_pulse_ui  <= 1'b1;
+                acq_state     <= ACQ_HIGH;
+            end
+        end
+        ACQ_HIGH: begin
+            acq_pulse_ui <= 1'b1;
+            if (acq_time_cnt < acq_time_used - 1) begin
+                acq_time_cnt <= acq_time_cnt + 1'b1;
+            end
+            else begin
+                acq_time_cnt <= 0;
+                acq_pulse_ui <= 0;
+                acq_state    <= ACQ_IDLE;
+            end
+        end
+        default: acq_state <= ACQ_IDLE;
+    endcase
+end
+
+//------------------------------------------------------------------------------
+// 5.6 sync1 整形器入口 mux（DL5 复用现有 sync1 状态机做 blanker）
+//
+// 普通/超快模式：输入 = sync1_pixel_tri_r1，delay = sync_sig_delay1，width = sync1_pixel_tri_wigth_r
+// 激光模式：    输入 = laser_pulse_ui，    delay = blanker_delay_ui， width = blanker_time_ui
+//------------------------------------------------------------------------------
+wire        sync1_trig_used  = laser_mode_en_ui ? laser_pulse_ui    : sync1_pixel_tri_r1;
+wire [15:0] sync1_delay_used = laser_mode_en_ui ? blanker_delay_ui  : sync_sig_delay1;
+wire [31:0] sync1_width_used = laser_mode_en_ui ? {16'd0, blanker_time_ui}
+                                                : sync1_pixel_tri_wigth_r;
 
 reg [31:0]  sync2_pixel_tri_wigth_r;
 reg sync2_pixel_tri_r0 = 0;
 reg sync2_pixel_tri_r1 = 0;
 always@(posedge ui_clk)begin
     sync2_pixel_tri_r0 <= sync2_pixel_tri;
-    sync2_pixel_tri_r1 <= sync2_pixel_tri_r0; 
-    sync2_pixel_tri_wigth_r <= (sync2_pixel_tri_wigth<<2);  
+    sync2_pixel_tri_r1 <= sync2_pixel_tri_r0;
+    sync2_pixel_tri_wigth_r <= (sync2_pixel_tri_wigth<<2);
 end
 parameter       IDLE1 = 4'b0001;
 parameter       S0 = 4'b0010;
@@ -270,7 +405,7 @@ always@(posedge ui_clk or negedge ui_rstn)
         sync_sig_delay1_cnt <= 32'd0;
     end
     else case(sync1_state)
-            IDLE1:if(sync1_pixel_tri_r1)begin
+            IDLE1:if(sync1_trig_used)begin
                     sync1_state         <= S0;
                   end
                   else begin
@@ -279,17 +414,17 @@ always@(posedge ui_clk or negedge ui_rstn)
                   end
 
        S0:begin
-                  if(sync_sig_delay1 == 16'd0)begin
-                    if(sync_sig_delay1_cnt == sync1_pixel_tri_wigth_r)begin
+                  if(sync1_delay_used == 16'd0)begin
+                    if(sync_sig_delay1_cnt == sync1_width_used)begin
                         sync_sig_delay1_cnt <= 32'd0;
                         sync_pixel_tri1_reg <= 0;
                         sync1_state         <= IDLE1;
-                    end  
+                    end
                     else begin
                         sync_sig_delay1_cnt <= sync_sig_delay1_cnt + 1'b1;
                         sync_pixel_tri1_reg <= 1;
                         sync1_state         <= S0;
-                    end              
+                    end
                   end
                   else begin
                     sync_pixel_tri1_reg <= 0;
@@ -297,28 +432,28 @@ always@(posedge ui_clk or negedge ui_rstn)
                   end
           end
        S1:begin
-                    if(sync_sig_delay1_cnt == sync_sig_delay1 - 1)begin
+                    if(sync_sig_delay1_cnt == sync1_delay_used - 1)begin
                         sync_sig_delay1_cnt <= 32'd0;
                         sync_pixel_tri1_reg <= 1;
                         sync1_state         <= S2;
-                    end  
+                    end
                     else begin
                         sync_sig_delay1_cnt <= sync_sig_delay1_cnt + 1'b1;
                         sync_pixel_tri1_reg <= 0;
                         sync1_state         <= S1;
-                    end      
+                    end
           end
        S2:begin
-                    if(sync_sig_delay1_cnt == sync1_pixel_tri_wigth_r - 1)begin
+                    if(sync_sig_delay1_cnt == sync1_width_used - 1)begin
                         sync_sig_delay1_cnt <= 32'd0;
                         sync_pixel_tri1_reg <= 0;
                         sync1_state         <= IDLE1;
-                    end  
+                    end
                     else begin
                         sync_sig_delay1_cnt <= sync_sig_delay1_cnt + 1'b1;
                         sync_pixel_tri1_reg <= 1;
                         sync1_state         <= S2;
-                    end 
+                    end
        end
        default:begin
                         sync1_state <= IDLE1;
@@ -331,22 +466,22 @@ always@(posedge ui_clk or negedge ui_rstn)
 always@(posedge ui_clk or negedge ui_rstn)
  if(!ui_rstn)
     sync_pixel_tri1 <= 1'b0;
- else if(ultrafast_mode_r1)
+ else if(ultrafast_mode_r1 || laser_mode_en_ui)
     sync_pixel_tri1 <=  (~sync_pixel_tri1_reg);
  else
-    sync_pixel_tri1 <= 1'b0; 
+    sync_pixel_tri1 <= 1'b0;
 
 // ILA 调试：观察 sync1 原始输入、宽度、状态机、计数器和最终外部输出。
 ila_1 sync1_test (
 	.clk(ui_clk), // input wire clk
 
 
-	.probe0(sync1_pixel_tri_r1), // input wire [0:0]  probe0  
-	.probe1(sync1_pixel_tri_wigth_r), // input wire [31:0]  probe1 
-	.probe2(sync1_state), // input wire [3:0]  probe2 
-	.probe3(sync_pixel_tri1_reg), // input wire [0:0]  probe3 
-	.probe4(sync_sig_delay1_cnt), // input wire [31:0]  probe4 
-	.probe5(sync_sig_delay1), // input wire [15:0]  probe5 
+	.probe0(sync1_pixel_tri_r1), // input wire [0:0]  probe0
+	.probe1(sync1_pixel_tri_wigth_r), // input wire [31:0]  probe1
+	.probe2(sync1_state), // input wire [3:0]  probe2
+	.probe3(sync_pixel_tri1_reg), // input wire [0:0]  probe3
+	.probe4(sync_sig_delay1_cnt), // input wire [31:0]  probe4
+	.probe5(sync_sig_delay1), // input wire [15:0]  probe5
 	.probe6(sync_pixel_tri1) // input wire [0:0]  probe6
 );
 
@@ -388,12 +523,12 @@ always@(posedge ui_clk or negedge ui_rstn)
                         sync_sig_delay2_cnt <= 32'd0;
                         sync_pixel_tri2_reg <= 0;
                         sync2_state         <= IDLE2;
-                    end  
+                    end
                     else begin
                         sync_sig_delay2_cnt <= sync_sig_delay2_cnt + 1'b1;
                         sync_pixel_tri2_reg <= 1;
                         sync2_state         <= S02;
-                    end              
+                    end
                   end
                   else begin
                     sync_pixel_tri2_reg <= 0;
@@ -405,24 +540,24 @@ always@(posedge ui_clk or negedge ui_rstn)
                         sync_sig_delay2_cnt <= 32'd0;
                         sync_pixel_tri2_reg <= 1;
                         sync2_state         <= S22;
-                    end  
+                    end
                     else begin
                         sync_sig_delay2_cnt <= sync_sig_delay2_cnt + 1'b1;
                         sync_pixel_tri2_reg <= 0;
                         sync2_state         <= S12;
-                    end      
+                    end
           end
        S22:begin
                     if(sync_sig_delay2_cnt == sync2_pixel_tri_wigth_r - 1)begin
                         sync_sig_delay2_cnt <= 32'd0;
                         sync_pixel_tri2_reg <= 0;
                         sync2_state         <= IDLE2;
-                    end  
+                    end
                     else begin
                         sync_sig_delay2_cnt <= sync_sig_delay2_cnt + 1'b1;
                         sync_pixel_tri2_reg <= 1;
                         sync2_state         <= S22;
-                    end 
+                    end
        end
        default:begin
                         sync2_state <= IDLE2;
@@ -436,12 +571,12 @@ ila_1 sync2_test (
 	.clk(ui_clk), // input wire clk
 
 
-	.probe0(sync2_pixel_tri_r1), // input wire [0:0]  probe0  
-	.probe1(sync2_pixel_tri_wigth_r), // input wire [31:0]  probe1 
-	.probe2(sync2_state), // input wire [3:0]  probe2 
-	.probe3(sync_pixel_tri2_reg), // input wire [0:0]  probe3 
-	.probe4(sync_sig_delay2_cnt), // input wire [31:0]  probe4 
-	.probe5(sync_sig_delay2), // input wire [15:0]  probe5 
+	.probe0(sync2_pixel_tri_r1), // input wire [0:0]  probe0
+	.probe1(sync2_pixel_tri_wigth_r), // input wire [31:0]  probe1
+	.probe2(sync2_state), // input wire [3:0]  probe2
+	.probe3(sync_pixel_tri2_reg), // input wire [0:0]  probe3
+	.probe4(sync_sig_delay2_cnt), // input wire [31:0]  probe4
+	.probe5(sync_sig_delay2), // input wire [15:0]  probe5
 	.probe6(sync_pixel_tri2) // input wire [0:0]  probe6
 );
 
@@ -456,9 +591,9 @@ ila_1 sync2_test (
   .probe0           (sync1_pixel_tri),
   .probe1           (DAX_DATA),
   .probe2           (DAY_DATA)
-  );  
+  );
 
 
 
-  
+
 endmodule

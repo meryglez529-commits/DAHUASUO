@@ -1,0 +1,11 @@
+{
+  "scan": {
+    "rows": 1024,
+    "cols": 1024,
+    "adc_sample": 20,
+    "dac_sample": 20,
+    "adc_channel": 4,
+    "adc_interval": 0,
+    "scan_mode": 1
+  }
+}

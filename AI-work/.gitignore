@@ -6,5 +6,9 @@ reports/
 *.log
 *.pb
 *.vcd
+*.pyc
+__pycache__/
+.venv/
+*.egg-info/
 xsim.dir/
 .Xil/

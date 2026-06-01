@@ -16,7 +16,7 @@
 
 ```powershell
 # 干净回滚到 baseline（丢弃 working tree 与 staged 改动）
-cd D:\XF\SGSC_SEM_dahuasuo_325T_V3_172\SGSC_SEM_dahuasuo_325T_V3_172\SGSC_SEM_325T_V3_171\fpga_prj
+cd D:\SGSC_SEM_dahuasuo_325T_V3_172\SGSC_SEM_dahuasuo_325T_V3_172\SGSC_SEM_325T_V3_171\fpga_prj
 git reset --hard baseline-pre-cowork
 
 # 只回滚某个文件

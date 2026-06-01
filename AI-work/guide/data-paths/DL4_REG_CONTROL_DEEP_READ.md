@@ -374,6 +374,12 @@ pc_ack
 | `0x0202` | `[31:1]`、`[0]` | `ultrafast_line_rec`、`ultrafast_mode` | DL1、DL2 | 超快模式和行恢复时间 |
 | `0x0203` | `[31:16]`、`[15:0]` | `sync_sig_delay1`、`sync_sig_delay2` | DL1 sync | sync 输出延时 |
 | `0x0204` | `[31:0]` | `acq_dead_time` | DL2 ultrafast | 超快模式死区 |
+| `0x0205` | `[0]` | `laser_mode_en` | DL5 laser sync | 1=启用激光同步模式；按当前设计约束，应只在 `scan_state=0` 时切换 |
+| `0x0206` | `[15:0]` | `scan_delay_time` | DL5 laser sync | laser 上升沿到写新像素的延时；当前 UNIT_002 设计按 eth_clk 拍，约 8ns 步进 |
+| `0x0207` | `[15:0]` | `blanker_delay_time` | DL5 laser sync | laser 到 blanker 输出延时；ui_clk 域 5ns 步进 |
+| `0x0208` | `[15:0]` | `blanker_time` | DL5 laser sync | blanker 窗口宽度；ui_clk 域 5ns 步进 |
+| `0x0209` | `[15:0]` | `acq_data_delay_time` | DL5 laser sync | laser 到 ADC 采集窗口延时；上位机按 20ns 步进配置，内部 `<<2` 到 ui_clk 拍 |
+| `0x020A` | `[15:0]` | `acq_time` | DL5 laser sync | ADC 采集窗口宽度；上位机按 20ns 步进配置，内部 `<<2` 到 ui_clk 拍 |
 | `0x0200` | `[15:0]` | `sync2_pixel_tri_wigth` | DL1 sync2 | 和 sync1 地址重复，疑似协议/代码风险 |
 
 读完应能回答：
@@ -456,12 +462,19 @@ pc_ack_r
 | `0x0012` | `offset_dacx_dacy` | offset |
 | `0x0013` | `{16'd0, row_repeat}` | 行重复 |
 | `0x0014` | `{row_m, row_n}` | 分组/隔行参数 |
+| `0x0205` | `{31'd0, laser_mode_en}` | DL5 激光同步模式开关 |
+| `0x0206` | `{16'd0, scan_delay_time}` | DL5 scan delay |
+| `0x0207` | `{16'd0, blanker_delay_time}` | DL5 blanker delay |
+| `0x0208` | `{16'd0, blanker_time}` | DL5 blanker width |
+| `0x0209` | `{16'd0, acq_data_delay_time}` | DL5 acq delay |
+| `0x020A` | `{16'd0, acq_time}` | DL5 acq width |
 | 其它 | `32'h11223344` | 未定义地址默认值 |
 
 读完应能回答：
 
 ```text
 PC 读回不是完整镜像。0x0200~0x0204 在当前代码里没有读回 case。
+UNIT_002 新增的 0x0205~0x020A 已有读回 case。
 读未知地址会返回 0x11223344。
 步进值 dacx_step/dacy_step 是派生输出，不通过读寄存器返回。
 ```
@@ -707,3 +720,190 @@ sync2_pixel_tri_wigth
 ```
 
 如果写 `0x0200` 只改变 `sync1_pixel_tri_wigth`，而 `sync2_pixel_tri_wigth` 不变，就说明重复 case 风险在综合后的硬件行为里确实影响了 sync2 配置。
+
+## 15. 上位机开发协议补充（2026-05-30）
+
+本节把前面的 RTL 阅读结果收敛成“上位机可以直接实现”的协议说明。结论是：DL4 已经足够支持一个基础上位机的寄存器读写层，但原文档还不够支撑一个可靠、可维护的完整应用；缺的主要是 PC 侧 socket 约束、读写确认策略、寄存器可读性边界、扫描/激光模式配置流程，以及错误处理约定。
+
+### 15.1 网络端点与过滤条件
+
+| 项 | 当前结论 | 源码证据 |
+|---|---|---|
+| FPGA 默认 IP | `192.168.1.8` (`0xC0A80108`) | `LAN_RX_ARP.v:44-52` |
+| FPGA 默认 MAC | `5C:85:7E:EE:00:00` | `LAN_RX_ARP.v:51-52` |
+| FPGA UDP 固定端口 | `32000` (`0x7D00`) | `ETHERNET_TOP.v:191-197` |
+| 寄存器读写业务类型 | `LAN_RX_TYPE=1` | `ETH_LAN_RX.v:315-320` |
+| 寄存器读回端口 | 仍为 `32000` | `LAN_TX_MUX.v:137-147` |
+
+PC 侧不要用随机本地 UDP 端口。`ETH_LAN_RX` 的实际过滤条件是：
+
+```text
+目标 MAC == FPGA MAC
+目标 IP  == FPGA IP
+UDP 目标端口 == 32000
+UDP 源端口   == 32000
+```
+
+因此上位机建议：
+
+```text
+bind(local_ip, 32000)
+sendto(fpga_ip=192.168.1.8, fpga_port=32000)
+recvfrom(local_port=32000)
+```
+
+PC 网卡建议放在同一网段，例如 `192.168.1.x/24`。首次通信前可先 `ping 192.168.1.8` 或发送 ARP，让板卡学习 PC 的 MAC/IP；读回 UDP 使用 ARP 学到的 PC 地址作为目的地址。
+
+### 15.2 Payload 编解码
+
+所有多字节字段都是大端，高字节先发。
+
+写寄存器：
+
+```text
+55 55 AA AA 00 01 00 06 ADDR_H ADDR_L DATA[31:24] DATA[23:16] DATA[15:8] DATA[7:0]
+```
+
+读寄存器：
+
+```text
+55 55 AA AA 00 02 00 02 ADDR_H ADDR_L
+```
+
+读回响应：
+
+```text
+55 55 AA AA 00 03 00 06 ADDR_H ADDR_L DATA[31:24] DATA[23:16] DATA[15:8] DATA[7:0]
+```
+
+上位机底层可以按下面的函数模型实现：
+
+```python
+def pack_write(addr: int, data: int) -> bytes:
+    return (
+        b"\x55\x55\xaa\xaa"
+        + b"\x00\x01"
+        + b"\x00\x06"
+        + addr.to_bytes(2, "big")
+        + data.to_bytes(4, "big")
+    )
+
+def pack_read(addr: int) -> bytes:
+    return (
+        b"\x55\x55\xaa\xaa"
+        + b"\x00\x02"
+        + b"\x00\x02"
+        + addr.to_bytes(2, "big")
+    )
+
+def parse_read_response(payload: bytes, expected_addr: int) -> int:
+    if len(payload) < 14:
+        raise ValueError("short read response")
+    if payload[0:8] != b"\x55\x55\xaa\xaa\x00\x03\x00\x06":
+        raise ValueError("bad read response header")
+    addr = int.from_bytes(payload[8:10], "big")
+    if addr != expected_addr:
+        raise ValueError(f"read response addr mismatch: 0x{addr:04X}")
+    return int.from_bytes(payload[10:14], "big")
+```
+
+### 15.3 读写确认策略
+
+写命令本身没有 ACK 包。上位机不要假设 `sendto()` 成功就等于 FPGA 已经写入。
+
+建议策略：
+
+| 寄存器类型 | 推荐确认方式 |
+|---|---|
+| 有读回 case 的寄存器 | 写后读同地址，比对读回值 |
+| 只写寄存器 | 写后读一个相关状态寄存器，或延时后继续流程 |
+| 启停类寄存器 `0x0009` | 写后读 `0x0009`，确认 `scan_state/scan_mode/adc_interval` |
+| DL5 `0x0205~0x020A` | 写后逐项读回，确认参数影子寄存器已更新 |
+| `0x0200~0x0204` | 当前不能直接读回；只能通过 ILA/外部波形或后续补 RTL 读回确认 |
+
+读命令建议超时重试：
+
+```text
+read timeout: 100~500 ms 起步
+retry: 3 次
+失败后重新 ARP/ping，再重试一次会话
+```
+
+调试时可以频繁读寄存器；正式采集时不要高频轮询，因为 `LAN_TX_MUX` 读回响应优先于 ADC 数据上传，可能短暂抢占 UDP 发送出口。
+
+### 15.4 上位机寄存器模型建议
+
+上位机不要在 UI 层到处手写地址和 bit slice。建议建三层：
+
+| 层 | 职责 |
+|---|---|
+| UDP transport | 绑定本地 32000、发包、收包、超时、重试、解析响应 |
+| Register client | `read32(addr)`、`write32(addr,data)`、`write_checked(addr,data)` |
+| Domain model | `set_image_size(row,column)`、`set_scan_timing(...)`、`set_laser_sync(...)`、`start_scan()`、`stop_scan()` |
+
+寄存器值打包规则建议集中在一个表或枚举里，例如：
+
+```text
+0x0001 = {7'd0, adc_len_single[20:0], adc_channel[3:0]}
+0x0004 = {image_row[15:0], image_column[15:0]}
+0x0005 = {dacx_start[15:0], dacx_end[15:0]}
+0x0006 = {dacx_tk_point[15:0], dacx_recovery_time[15:0]}
+0x0007 = {dacy_start[15:0], dacy_end[15:0]}
+0x0009 = {adc_interval[23:0], scan_mode[3:0], scan_state[3:0]}
+0x0202 = {ultrafast_line_rec[30:0], ultrafast_mode[0]}
+0x0203 = {sync_sig_delay1[15:0], sync_sig_delay2[15:0]}
+```
+
+### 15.5 安全配置流程
+
+普通扫描参数建议流程：
+
+```text
+1. stop_scan: 写 0x0009，把 scan_state 置 0，保留/设置 adc_interval 和 scan_mode
+2. 写图像尺寸、DAC 起止、电平、sample、row_repeat 等参数
+3. 对有读回的关键参数做 write_checked
+4. 如需 ADC 上传，准备 PC 接收 32001 端口的数据
+5. start_scan: 写 0x0009，把 scan_state 置 1
+```
+
+DL5 激光同步模式建议流程：
+
+```text
+1. stop_scan
+2. 写 0x0205 = 0，确保先关 laser mode
+3. 写 0x0206~0x020A：scan_delay / blanker_delay / blanker_time / acq_delay / acq_time
+4. 写 0x0205 = 1
+5. 读回 0x0205~0x020A，确认参数
+6. start_scan
+```
+
+切换 `laser_mode_en` 时遵守“停扫描 -> 改模式和参数 -> 开扫描”。这是 DL5 当前 RTL 复位/状态机策略的一部分，不建议在扫描中途热切模式。
+
+### 15.6 当前还不能只靠 DL4 解决的事
+
+| 缺口 | 对上位机的影响 | 建议 |
+|---|---|---|
+| 写命令无 ACK | 上位机必须自己做写后读或流程级确认 | 寄存器 client 默认提供 `write_checked` |
+| `0x0200~0x0204` 无读回 | sync/ultrafast 部分参数不能闭环确认 | 后续若上位机必须显示真实值，建议补 RTL 读回 |
+| `0x0200` 重复 case | `sync2_pixel_tri_wigth` 通常不可配置 | 上位机先禁用 sync2 宽度配置，或等 RTL 修地址 |
+| ADC 数据上传协议属于 DL2 | DL4 只能启动/配置采集，不能解释 32001 数据 | 上位机的数据接收/解析要继续看 DL2 文档 |
+| remote 固件升级属于 DL3 | DL4 只负责 `remote_rstn` 和结果读回 | 固件升级页面要继续看 DL3 文档 |
+| 上板网络环境未记录 | PC IP、网卡选择、ARP 行为会影响连通性 | 上位机提供网卡选择、ping/ARP 检查和连接诊断 |
+
+### 15.7 上位机最小可行版本
+
+第一版上位机建议先做成一个“寄存器控制台 + 参数表单”，不要一开始就把采图、波形、DL5 全塞进去。
+
+最小功能：
+
+```text
+1. 选择本地网卡 / 本地 IP，绑定 UDP 32000
+2. 读版本号 0x000A，期望返回 0x000300AC
+3. 任意 read32/write32 调试面板
+4. 基础参数表：0x0001~0x0014
+5. DL5 参数表：0x0205~0x020A
+6. stop_scan / start_scan 两个明确按钮
+7. 日志窗口显示每次发包、收包、超时、重试、读回值
+```
+
+等这层稳定后，再接 DL2 的 ADC 数据 UDP 32001 接收和图像显示。

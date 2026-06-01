@@ -8,8 +8,8 @@
 |---|---|
 | OS | Windows 11 Pro 22631 |
 | Shell | PowerShell（命令也可走 Bash，但 PowerShell 是首选） |
-| 工程根路径 | `D:/XF/SGSC_SEM_dahuasuo_325T_V3_172/SGSC_SEM_dahuasuo_325T_V3_172/SGSC_SEM_325T_V3_171/fpga_prj` |
-| 工程根字符长度 | 107（< 240，安全） |
+| 工程根路径 | `D:/SGSC_SEM_dahuasuo_325T_V3_172/SGSC_SEM_dahuasuo_325T_V3_172/SGSC_SEM_325T_V3_171/fpga_prj` |
+| 工程根字符长度 | 92（< 240，安全） |
 | 最长内部文件预计长度 | ~187（仍在 Windows 长路径阈值内） |
 
 ## 工具链
@@ -20,7 +20,8 @@
 | xsim | Vivado 自带 | 2021.1 | **当前选用** |
 | ModelSim | `D:/modeltech64_10.6d/win64/vsim.exe` | — | **不可用**：TCL 重建脚本里写的路径不存在 |
 | Git | `C:/Program Files/Git/cmd/git.exe` | 已装 | OK |
-| Python | `C:/Users/XF/AppData/Local/Python/bin/python.exe` | 3.14.2 | OK（用于 validate 脚本） |
+| winget | `C:/Users/Administrator/AppData/Local/Microsoft/WindowsApps/winget.exe`（App Installer 包：`C:/Program Files/WindowsApps/Microsoft.DesktopAppInstaller_1.28.240.0_x64__8wekyb3d8bbwe/winget.exe`） | v1.28.240 | OK |
+| Python | `C:/Users/Administrator/AppData/Local/Programs/Python/Python312/python.exe` | 3.12.10 | OK；`pip` 25.0.1；用户 PATH 已包含 `Python312/` 与 `Python312/Scripts/` |
 | D2 | 未安装 | — | 暂用 Mermaid 替代，需要大图时再装 |
 
 ## 仿真器选择

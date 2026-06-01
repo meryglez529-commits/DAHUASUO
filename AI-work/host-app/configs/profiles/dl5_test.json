@@ -1,0 +1,19 @@
+{
+  "scan": {
+    "rows": 1024,
+    "cols": 1024,
+    "adc_sample": 20,
+    "dac_sample": 20,
+    "adc_channel": 4,
+    "adc_interval": 0,
+    "scan_mode": 1
+  },
+  "dl5": {
+    "laser_mode": 1,
+    "scan_delay": 100,
+    "blanker_delay": 20,
+    "blanker_time": 80,
+    "acq_delay": 30,
+    "acq_time": 60
+  }
+}

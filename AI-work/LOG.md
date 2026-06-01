@@ -8,6 +8,27 @@
 
 | 时间 | Mode | 简述 |
 |---|---|---|
+| 2026-06-01 10:47 | host-app-gui-safety | 落地 UI 第一性原则中的 P0/P1：模式工作台新增参数 dirty 状态、失败态 start 防护、REAL 模式 apply/start 确认、`0x0009` scan 状态读回、GUI 操作等价 CLI 日志、写入计划地址展开开关；连接栏新增网络诊断；验证 21 项 unittest、compileall、CLI mode dry-run、GUI 行为小测试通过 |
+| 2026-06-01 10:35 | host-app-ui-principles | 参考 ISA-101、FDA human factors、LabOne、Windows design basics、Qt HMI 资料，从第一性原理重新梳理上位机 UI；新增 `HOST_APP_UI_FIRST_PRINCIPLES.md`，明确 UI 是仪器控制台而非寄存器编辑器，并定义状态、模式、日志、防错、DL2/3 扩展和验收标准 |
+| 2026-06-01 10:01 | host-app-gui-v2 | 按用户确认实施 GUI V2：新增模式工作台和顶部连接栏，主流程改为普通扫描/超快扫描/激光同步三种模式；raw register console 移到高级调试；补齐 V2 实现记录，验证 21 项 unittest、compileall、CLI mode dry-run、GUI instantiate 均通过 |
+| 2026-06-01 09:48 | host-app-ux-plan | 根据用户试用 GUI 反馈，新建 `HOST_APP_GUI_UX_V2_PLAN.md`：将 V2 GUI 定位为以人为本的三模式工作台（普通/超快/激光），主流程隐藏寄存器地址，寄存器控制台降级为高级调试；补充三种模式的参数、写入流程、防呆规则和 V2-P0~P7 改造计划 |
+| 2026-06-01 09:40 | host-app-env | 检查并安装上位机 Python 环境：系统 Python 3.12.10/64bit 可用；因工程路径过长导致本地 `.venv` 安装 PySide6-Essentials 触发 long path，改用短路径 `D:\fpga_host_venv`；已安装 editable `fpga-host 0.1.0`、PySide6_Essentials 6.11.1；CLI、GUI import、UDP 32000 bind、17 项 unittest 均通过；新增 `HOST_APP_ENVIRONMENT.md` 实板测试命令 |
+| 2026-06-01 09:10 | host-app-implementation | 实现 `AI-work/host-app` 第一版 P0-P6：Python package 骨架、DL4 protocol/register map/register client、real UDP + mock transport、scan/DL5 device API、CLI、PySide6/PyQt GUI 面板、DL2 data-plane stub/mock、configs 和 unittest；17 项单测通过，CLI mock 验证通过；当前环境缺少 Qt binding，GUI 未启动实测，真实 FPGA UDP 未接板实测 |
+| 2026-05-31 14:16 | host-app-architecture | 新建 `AI-work/host-app/HOST_APP_ARCHITECTURE.md`：固化 PySide6/PyQt 上位机的分层架构、目录骨架、core/GUI/CLI/mock 边界、DL4 协议模块、DL2 数据平面预留、测试策略和开发阶段；在选型文档中补充架构文档链接 |
+| 2026-05-30 17:21 | host-app-planning | 固化上位机第一版技术栈决策：Python Qt 路线（PySide6 优先、PyQt 备选）、原生 CLI、mock 模式、第一阶段不打包 exe；补充 DL2 快速接入的 control/data 分层和后台 worker/帧模型预留要求 |
+| 2026-05-30 17:19 | host-app-planning | 根据用户倾向更新上位机选型文档：记录 Qt 路线，并区分 C++ Qt 与 PySide6/PyQt 两个分支；新增 mock 模式说明、模拟范围和工程价值 |
+| 2026-05-30 17:18 | host-app-planning | 根据用户补充的 AI 协作需求，更新上位机选型文档：第一版明确为 GUI + 原生 CLI + 共享核心库，并记录 CLI 命令草案、JSON/dry-run/mock 等要求及 CLI-Anything 后续定位 |
+| 2026-05-30 17:02 | host-app-planning | 新建 `AI-work/host-app/HOST_APP_DISCUSSION_AND_TECH_SELECTION.md`，记录上位机第一版范围、DL4 协议约束、技术选型候选方案、推荐路线和待用户决策问题 |
+| 2026-05-30 16:49 | DL4-doc-update | 补充 `DL4_REG_CONTROL_DEEP_READ.md` 的上位机开发协议说明：网络端点/端口绑定、payload 编解码、读写确认策略、寄存器模型、普通扫描和 DL5 配置流程；同步更新 0x0205~0x020A 读写表 |
+| 2026-05-30 16:45 | DL4-protocol-read | 阅读 DL4 寄存器控制链路和以太网协议栈源码，确认 UDP 32000 双向寄存器协议、payload 格式、读回格式、端口过滤和上位机绑定要求；未修改 RTL |
+| 2026-05-30 16:39 | context-read | 阅读 AI-work 工作区，补充当前项目理解；重点核对 FPGA_PROJECT_GUIDE、env、DL1~DL5 文档与 UNIT_002 仿真记录，未修改 RTL |
+| 2026-05-27 18:35 | DL5-UNIT002-plan | 补充 `DL5_UNIT_002/WORK.md` 实现方案草案：推荐复用 `0x020A` 为 `scan_delay_time`，由 `laser_sync_in` 触发 scan/blanker/acq 三窗口，`Scan_X_Signal` 仅作内部脉冲，`parameter_dacdata_gen` 由 scan_x 触发写 `dac_sample` 长度 FIFO burst；未修改 RTL |
+| 2026-05-27 18:20 | DL5-UNIT002-requirements | 根据 PDF 截图和用户纠偏更新 `DL5_UNIT_002/WORK.md`：确认 dwell time 来自 `dac_sample`，每个 `laser_sync_in` 边沿后经 `scan delay` 产生 `Scan_X_Signal` 控制 DAC 坐标赋值，同时产生 blanker/acq 三窗口；未修改 RTL |
+| 2026-05-27 18:03 | DL5-UNIT002-docs | 用户确认 UNIT_001 需求方向偏差；整理 UNIT_001 为历史实现包，并新建 `features/DL5_laser_sync/DL5_UNIT_002/` 作为第二轮需求对齐入口，当前未修改 RTL |
+| 2026-05-27 14:40 | DL5-sim-replay | 验证 `features/DL5_laser_sync/DL5_UNIT_001/sim/run_batch.tcl`：脚本临时切 `target_simulator=XSim`，Vivado 2021.1 复跑 TC1-TC8 PASS，重新生成 `out/sim/result.txt`、`xsim.log`、`vivado_run_batch.log`、`waveform.wdb` |
+| 2026-05-27 14:22 | DL5-doc-recovery | 按 `skill-improvements/fpga-project-reader-doc-management.md` 第 10 节补救 DL5：新建 `features/DL5_laser_sync/DL5_UNIT_001/`，整理 `WORK.md`、`RTL_REVIEW.md`、`SIM_REPLAY.md`、仿真/综合证据、Vivado replay Tcl，并把旧 `DL5_LASER_SYNC_MODE_DESIGN.md` 改为归档入口 |
+| 2026-05-27 09:39 | env-maintenance | 通过真实 `winget.exe` 安装并验证 Python 3.12.10；`python`/`py`/`pip`/`winget` 在模拟新终端 PATH 下均可按命令名找到；回填 `ENVIRONMENT.md` |
+| 2026-05-27 09:19 | env-maintenance | 更新 `ENVIRONMENT.md` / `SNAPSHOTS.md` 中的工程根路径为当前 `D:/SGSC_SEM_dahuasuo_325T_V3_172/.../fpga_prj`；当时 PATH 里的 Python/winget 均表现为 WindowsApps 占位入口，后续改用 App Installer 包内真实 `winget.exe` 处理 |
 | 2026-05-22 17:24 | DL5-impl | Step 8c 完成：full synth_1 PASS（BUILD PASS, synth_design Complete），0 ERROR / 0 CRITICAL WARNING（整个综合日志）。资源占用：LUT 31.94%、Reg 27.19%、IOB 70.50%（+1 = laser_sync_in）、BRAM 89.89%（pre-existing，与 DL5 无关）、DSP 1.90%。Step 7 集成 sim 跳过（综合等价覆盖了接线/CDC 验证） |
 | 2026-05-22 17:18 | DL5-impl | Step 8b 完成：RTL elaboration PASS（synth_design -rtl on AXI_DDR.xpr），0 ERROR / 0 CRITICAL WARNING，`laser_sync_blanker_ctrl` 干净综合，`laser_sync_in` 在顶层 port list。剩余 warning 均为 pre-existing（adcdata_config.data_en 未连接等） |
 | 2026-05-22 17:15 | DL5-impl | Step 2~6 完成：parameter_dacdata_gen.v 加 laser mode 分支 + laser_pixel_written 标志；dac_output.v 加 4 个 DL5 输入端口 + 3 处 mux（adc_tri/sync1/sync2）+ ui_clk→dac_dco 同步；dacdata_config.v 例化 laser_sync_blanker_ctrl + 完整 CDC（双 FF + ASYNC_REG，toggle-FF pulse 同步）；command_monitor_new.v 加 6 个寄存器（0x0205~0x020A）+ 读写解码；ETH_TOP.v 加 laser_sync_in 顶层端口 + 6 个 wire。全部 xvlog 语法过 |

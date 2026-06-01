@@ -1,18 +1,18 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
+// Company:
+// Engineer:
+//
 // Create Date: 2020/02/11 10:07:21
-// Design Name: 
+// Design Name:
 // Module Name: AWG_TOP
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
+// Project Name:
+// Target Devices:
+// Tool Versions:
+// Description:
+//
+// Dependencies:
+//
 // Revision:
 // Revision 0.01 - File Created
 // Additional Comments:
@@ -40,7 +40,7 @@ module ETH_TOP(
     input           sys_clk,    //100M
     output          FPGA_50M,
     //-------------------dac_gain----------------------
-    output          AOUT1_CON,   
+    output          AOUT1_CON,
     output          AOUT2_CON,
     //------------------adc_gain------------------------
     output          AIN4_PD,
@@ -98,7 +98,7 @@ module ETH_TOP(
     input           adc2_dcoa,
     input           adc2_dcob,
     input  [15:0]   adc2_da,
-    input  [15:0]   adc2_db, 
+    input  [15:0]   adc2_db,
     //-------------------Ethernet------------------------
     input           gtrefclk_p, //125M
     input           gtrefclk_n,
@@ -126,10 +126,10 @@ module ETH_TOP(
     output          DDR3_ras_n,
     output          DDR3_reset_n,
     output          DDR3_we_n,
-    //--------------QSPI FLASHX4---------------------- 
+    //--------------QSPI FLASHX4----------------------
     inout           qspi_d0,
-    inout           qspi_d1,  
-    inout           qspi_d2, 
+    inout           qspi_d1,
+    inout           qspi_d2,
     inout           qspi_d3,
     output          qspi_csb,
   //------------------offset dac-------------------------
@@ -138,7 +138,7 @@ module ETH_TOP(
     output          ADC2_SCL,
     inout           ADC2_SDA,
    //----------------baseboard signal----------------------
-    output  [7:0]   LED, 
+    output  [7:0]   LED,
     output  [1:0]   FAN,
     input           UART_RX,
     output          UART_TX,
@@ -150,9 +150,11 @@ module ETH_TOP(
     output          TRIG_CLOCK,
     output          TRIGGER_H,
     output          TRIG_V,
-    output          TRIG_BLANK
+    output          TRIG_BLANK,
+    // DL5 激光同步模式：来自外部激光器的异步 TTL 触发输入
+    input           laser_sync_in
     );
-    
+
 //------------------------------------------------------------------------------
 // 1. 上位机寄存器解码后的控制面
 //
@@ -189,7 +191,7 @@ module ETH_TOP(
     wire [31:0]     dax_fall_time;
     wire [23:0]     adc_interval;
     wire [3:0]      scan_mode;
-    wire [3:0]      scan_state;  
+    wire [3:0]      scan_state;
 
     wire            wr_offset_flag;
     wire [31:0]     offset_adc1_adc2;
@@ -211,6 +213,13 @@ module ETH_TOP(
     wire [31:0]     ultrafast_line_rec;
     wire [15:0]    sync_sig_delay1;
     wire [15:0]    sync_sig_delay2;
+    // DL5 激光同步模式 wire（连接 command_monitor_new ↔ dacdata_config）
+    wire            laser_mode_en;
+    wire [15:0]     scan_delay_time;
+    wire [15:0]     blanker_delay_time;
+    wire [15:0]     blanker_time;
+    wire [15:0]     acq_data_delay_time;
+    wire [15:0]     acq_time;
 //******************************************
 //--------------------PLL-------------------
 //******************************************
@@ -230,17 +239,17 @@ module ETH_TOP(
 //------------------------------------------------------------------------------
     wire            ui_clk;
     wire            fdma_rstn;
-    wire            clk200m; 
+    wire            clk200m;
     wire            clk10m;
     wire            clk50m;
     wire            locked;
 sysclk P0(
-    .clk_in1        (sys_clk), 
-    .clk_out1       (clk200m),     
-    .clk_out2       (clk10m),     
+    .clk_in1        (sys_clk),
+    .clk_out1       (clk200m),
+    .clk_out2       (clk10m),
     .clk_out3       (clk50m),
     .locked         (locked)
-    ); 
+    );
 //******************************************
 //---------------rst_delay------------------
 //******************************************
@@ -274,7 +283,7 @@ ad9517_cfg U0(
     .pll_sdio       (pll_sdio),
     .pll_ref_sel    (pll_ref_sel),
     .pll_resetn     (pll_resetn)
-    );    
+    );
 //******************************************
 //---------------ad9747cfg------------------
 //******************************************
@@ -313,7 +322,7 @@ ad9258_cfg U2(
     .offset_adc2    (8'd0),
     .offset_adc3    (8'd0),
     .offset_adc4    (8'd0)
-    ); 
+    );
 //******************************************
 //--------------ETHERNET TOP---------------
 //******************************************
@@ -327,10 +336,10 @@ ad9258_cfg U2(
 //
 // 所以看到 eth_clk 时不要直接认为它只属于网口。它也是寄存器控制面的时钟。
 //------------------------------------------------------------------------------
-    wire            link_up;   
-    wire            sync_done;  
-    wire            resetdone;   
-    wire            eth_clk;  
+    wire            link_up;
+    wire            sync_done;
+    wire            resetdone;
+    wire            eth_clk;
     wire            eth_rstn;
     wire            WR_REG_VALID;           //锟斤拷写锟侥达拷锟斤拷锟斤拷锟斤拷锟斤拷锟侥接匡拷
     wire    [15:0]  WR_REG_ADDR;
@@ -338,9 +347,9 @@ ad9258_cfg U2(
     wire            RD_REG_VALID;
     wire    [15:0]  RD_REG_ADDR;
     wire    [31:0]  RD_REG_DATA;
-    
+
     wire            prog_full;                          //ADC锟缴硷拷锟斤拷锟斤拷锟酵革拷锟斤拷锟斤拷模锟斤拷锟斤拷锟斤拷洗锟?
-    wire            data_req;                
+    wire            data_req;
     wire            data_ACK;
     wire    [21:0]  data_wr_pack_num;
     wire    [15:0]  data_wr_last_pack_num;
@@ -352,7 +361,7 @@ ad9258_cfg U2(
     wire    [15:0]  remote_wr_data;
     wire            remote_rx_done;
     wire            remote_complete;
-    
+
     wire            remote_rstn;
 ETHERNET_TOP#(.ILA_DEBUG(1'b0)) U02(
     .gtrefclk_p     (gtrefclk_p),              //125M
@@ -369,12 +378,12 @@ ETHERNET_TOP#(.ILA_DEBUG(1'b0)) U02(
     .rxn_sgmii      (rxn_sgmii),                    // Differential -ve for serial reception from PMD to PMA.
     // asynchronous reset
     .glbl_rst               (!locked),              //active high
-    .independent_clock_bufg (clk50m),               //50M   
-    .link_up                (link_up),    
-    .sync_done              (sync_done),  
-    .resetdone              (resetdone),     
+    .independent_clock_bufg (clk50m),               //50M
+    .link_up                (link_up),
+    .sync_done              (sync_done),
+    .resetdone              (resetdone),
     //锟斤拷写锟侥达拷锟斤拷锟接匡拷锟斤拷锟斤拷
-    .user_axis_clk          (eth_clk),   
+    .user_axis_clk          (eth_clk),
     .user_axis_resetn       (eth_rstn),
     .WR_REG_VALID           (WR_REG_VALID),
     .WR_REG_ADDR            (WR_REG_ADDR),
@@ -398,7 +407,7 @@ ETHERNET_TOP#(.ILA_DEBUG(1'b0)) U02(
     .remote_rx_done         (remote_rx_done),
     .remote_rstn            (remote_rstn),
     .remote_complete        (remote_complete)
-    ); 
+    );
 //******************************************
 //---------------DDR3锟斤拷写------------------
 //******************************************
@@ -486,10 +495,10 @@ system_wrapper U3 (
     .pkg1_wr_en      (pkg1_wr_en),
     .pkg1_wr_last    (pkg1_wr_last),
     .pkg1_wr_size    (pkg1_wr_size)
-    ); 
+    );
 //******************************************
 //-----------------指锟斤拷锟斤拷锟?-----------------
-//****************************************** 
+//******************************************
 //------------------------------------------------------------------------------
 // 5. 寄存器控制面
 //
@@ -497,7 +506,7 @@ system_wrapper U3 (
 // 它不搬运 ADC/DAC 样本，只产生“怎么采、怎么扫、发多少、增益多少、是否升级”
 // 这些控制量。后面的业务模块再把这些控制量同步到自己的时钟域使用。
 //------------------------------------------------------------------------------
-command_monitor_new U4( 
+command_monitor_new U4(
     .eth_clk        (eth_clk),
     .eth_rst        (~eth_rstn),
     .wr_reg_valid   (WR_REG_VALID),
@@ -551,11 +560,18 @@ command_monitor_new U4(
     .acq_dead_time      (acq_dead_time),
     .sync_sig_delay1        (sync_sig_delay1),
     .sync_sig_delay2        (sync_sig_delay2),
+    // DL5 激光同步模式
+    .laser_mode_en          (laser_mode_en),
+    .scan_delay_time        (scan_delay_time),
+    .blanker_delay_time     (blanker_delay_time),
+    .blanker_time           (blanker_time),
+    .acq_data_delay_time    (acq_data_delay_time),
+    .acq_time               (acq_time),
     .pc_ack_r           (pc_ack)
-    ); 
+    );
 //******************************************
 //-----------adc锟斤拷锟捷采硷拷锟较达拷----------------
-//******************************************  
+//******************************************
 //------------------------------------------------------------------------------
 // 6. DL2：ADC 采集 -> DDR -> 以太网上传
 //
@@ -568,12 +584,12 @@ command_monitor_new U4(
 //   顶层只取 adc*_d*[15:2] 这 14bit，adcdata_config 内部再补 0 成 16bit 处理。
 //   后续 adcdata_get 会按 adc_channel 把若干个 16bit 样本打包成 64bit。
 //------------------------------------------------------------------------------
-    wire            adc_tri;   
+    wire            adc_tri;
     assign TRIGGER_OUT = sync_pixel_tri2;
     wire          read_flag;
 adcdata_config U5(
     .eth_clk        (eth_clk),
-    .eth_rstn       (eth_rstn), 
+    .eth_rstn       (eth_rstn),
     .ui_clk         (ui_clk),
     .fdma_rstn      (fdma_rstn),
     .adc1_dcoa      (adc1_dcoa),
@@ -586,9 +602,9 @@ adcdata_config U5(
     .adc2_da        (adc2_da[15:2]),
     .adc2_db        (adc2_db[15:2]),
     .row_repeat     (row_repeat),
-    .adc_tri        (adc_tri),       
+    .adc_tri        (adc_tri),
     .image_point    (image_point),
-    .adc_len_single (adc_len_single),    
+    .adc_len_single (adc_len_single),
     .adc_channel    (adc_channel),
     .adc_sample     (adc_sample),
     .image_column   (image_column),
@@ -596,7 +612,7 @@ adcdata_config U5(
     .ultrafast_mode (ultrafast_mode),
     .acq_dead_time  (acq_dead_time),
     .adc_acq_delay  (adc_acq_delay),
-    .scan_state     (scan_state[0]),   
+    .scan_state     (scan_state[0]),
     .pc_ack         (pc_ack),
     //ADC锟缴硷拷锟斤拷锟斤拷锟酵革拷锟斤拷锟节斤拷锟叫凤拷锟斤拷模锟斤拷
     .prog_full              (prog_full),
@@ -609,7 +625,7 @@ adcdata_config U5(
     .tx_data_done           (tx_data_done),
     .LED                    (LED[3:0]),
     //////
-    .pkg_wr_areq            (pkg1_wr_areq),       
+    .pkg_wr_areq            (pkg1_wr_areq),
     .pkg_wr_en              (pkg1_wr_en),
     .pkg_wr_last            (pkg1_wr_last),
     .pkg_wr_addr            (pkg1_wr_addr),
@@ -621,10 +637,10 @@ adcdata_config U5(
     .pkg_rd_addr            (pkg1_rd_addr),
     .pkg_rd_areq            (pkg1_rd_areq),
     .pkg_rd_size            (pkg1_rd_size)
-    ); 
+    );
 //******************************************
 //---------------dac锟斤拷锟捷回凤拷----------------
-//******************************************     
+//******************************************
 //------------------------------------------------------------------------------
 // 7. DL1：DAC 扫描输出，同时给 DL2 产生采样触发
 //
@@ -642,13 +658,13 @@ adcdata_config U5(
     assign dac_p2d = 65535 - DAY_DATA;
 dacdata_config U6(
     .eth_clk            (eth_clk),
-    .eth_rstn           (eth_rstn), 
+    .eth_rstn           (eth_rstn),
     .ui_clk             (ui_clk),
     .dac_dco            (dac_dco),
     .dac_sample         (dac_sample),
     .image_row          (image_row),
     .dacx_strat_level   (dacx_strat_level),
-    .dacx_end_level     (dacx_end_level),   
+    .dacx_end_level     (dacx_end_level),
     .dacx_step          (dacx_step),
     .dacx_tk_point      (dacx_tk_point),
     .dacx_recovery_time (dacx_recovery_time),
@@ -662,7 +678,7 @@ dacdata_config U6(
     .ultrafast_line_rec (ultrafast_line_rec),
     .sync_sig_delay1        (sync_sig_delay1),
     .sync_sig_delay2        (sync_sig_delay2),
-    .scan_state         (scan_state[0]),              
+    .scan_state         (scan_state[0]),
     .row_repeat         (row_repeat),           //new function
     .sync1_pixel_tri_wigth(sync1_pixel_tri_wigth),
     .sync2_pixel_tri_wigth(sync2_pixel_tri_wigth),
@@ -671,16 +687,25 @@ dacdata_config U6(
     .clk_sel						( clk_sel),
     .TRIGGER_IN					(TRIGGER_IN),
 
+    // DL5 激光同步模式
+    .laser_mode_en      (laser_mode_en),
+    .scan_delay_time    (scan_delay_time),
+    .blanker_delay_time (blanker_delay_time),
+    .blanker_time       (blanker_time),
+    .acq_data_delay_time(acq_data_delay_time),
+    .acq_time           (acq_time),
+    .laser_sync_in      (laser_sync_in),
+
     .sync_pixel_tri1    (sync_pixel_tri1),
-    .sync_pixel_tri2    (sync_pixel_tri2),       
-    .adc_tri            (adc_tri),  
+    .sync_pixel_tri2    (sync_pixel_tri2),
+    .adc_tri            (adc_tri),
     .DAX_DATA           (DAX_DATA),
-    .DAY_DATA           (DAY_DATA)   
-    );  
-    
+    .DAY_DATA           (DAY_DATA)
+    );
+
 //******************************************
 //---------------multiboot------------------
-//****************************************** 
+//******************************************
 //------------------------------------------------------------------------------
 // 8. 远程升级/QSPI 控制面
 //
@@ -692,7 +717,7 @@ dacdata_config U6(
   wire              data_in_flag;
   wire  [3:0]       data_in;
   wire  [7:0]       flash_type_out;
-  wire   write_rom_flag; 
+  wire   write_rom_flag;
   wire  [7:0]       write_rom_data;
   multiboot_cfg_new U7(
     .eth_clk            (eth_clk),
@@ -702,10 +727,10 @@ dacdata_config U6(
     .remote_config_len  (remote_len),
     .remote_result      (remote_result),
     .remote_complete    (remote_complete),
-    .read_flash_flag (  read_flag    ),    
-    .flash_type_in   (  flash_type_out      ),    
-    .write_rom_flag  (  write_rom_flag     ),    
-    .write_rom_data  (  write_rom_data     ),    
+    .read_flash_flag (  read_flag    ),
+    .flash_type_in   (  flash_type_out      ),
+    .write_rom_flag  (  write_rom_flag     ),
+    .write_rom_data  (  write_rom_data     ),
     .qspi_d0            (qspi_d0),
     .qspi_d1            (qspi_d1),
     .qspi_d2            (qspi_d2),
@@ -715,7 +740,7 @@ dacdata_config U6(
     .data_in_flag       (data_in_flag),
     .data_in            (data_in)
     );
-  
+
   STARTUPE2  STARTUPE2_inst(
     .CFGCLK(), // 1-bit output: Configuration main clock output
     .CFGMCLK(), // 1-bit output: Configuration internal oscillator clock output
@@ -730,11 +755,11 @@ dacdata_config U6(
     .USRCCLKTS(0), // 1-bit input: User CCLK 3-state enable input
     .USRDONEO(1), // 1-bit input: User DONE pin output control
     .USRDONETS(1) // 1-bit input: User DONE 3-state enable outpu
-    ); 
-    
+    );
+
 //******************************************
 //---------------DDR3锟斤拷锟斤拷------------------
-//****************************************** 
+//******************************************
 // 远程升级链路的 DDR 读写控制器。注意这里接的是 pkg_*，不是 ADC 使用的 pkg1_*。
 wire remote_en;
 ddr3_ctrl U07(
@@ -743,13 +768,13 @@ ddr3_ctrl U07(
     .ui_clk                 (ui_clk),
     .fdma_rstn              (fdma_rstn),
     .clk_50m                (clk50m),
-    
+
     .remote_rstn            (remote_rstn),
     .remote_wr_en           (remote_wr_en),
     .remote_wr_data         (remote_wr_data),
     .remote_rx_done         (remote_rx_done),
     //user write ddr3 interface
-    .pkg_wr_areq            (pkg_wr_areq),       
+    .pkg_wr_areq            (pkg_wr_areq),
     .pkg_wr_en              (pkg_wr_en),
     .pkg_wr_last            (pkg_wr_last),
     .pkg_wr_addr            (pkg_wr_addr),
@@ -768,7 +793,7 @@ ddr3_ctrl U07(
     );
 //******************************************
 //---------------FRAM锟斤拷锟斤拷------------------
-//****************************************** 
+//******************************************
 //------------------------------------------------------------------------------
 // 9. 非易失参数和模拟偏置
 //
@@ -802,11 +827,11 @@ ddr3_ctrl U07(
     .write_rom_flag      (write_rom_flag   ),
     .flash_type_in      ( write_rom_data  ),
     .flash_type_out      ( flash_type_out  )
-    ); 
+    );
 //******************************************
 //-----------偏锟斤拷DAC锟斤拷锟斤拷锟斤拷------------------
-//****************************************** 
-  offset_dac_cfg U9( 
+//******************************************
+  offset_dac_cfg U9(
     .clk10m             (clk10m),
     .rstn               (rstn_offdac),
     .ADC1_SCL           (ADC1_SCL),
@@ -823,7 +848,7 @@ ddr3_ctrl U07(
     );
 //******************************************
 //AIN AOUT通锟斤拷锟斤拷锟芥，LED,锟斤拷锟饺癸拷锟界，锟斤拷锟斤拷锟斤拷pin锟斤拷锟斤拷
-//****************************************** 
+//******************************************
 //------------------------------------------------------------------------------
 // 10. 板级离散输出
 //
@@ -832,33 +857,33 @@ ddr3_ctrl U07(
 // 调采样数据格式、DDR 包长或 UDP payload 时不要从这里下手。
 //------------------------------------------------------------------------------
     assign AOUT1_CON    = (dacx_gain[1])? 1'b1:1'b0;                                           //锟斤拷锟斤拷DAC锟斤拷锟斤拷锟斤拷,5V10V-->>1;   1.25V2.5V-->>0
-    assign AOUT2_CON    = (dacy_gain[1])? 1'b1:1'b0;  
+    assign AOUT2_CON    = (dacy_gain[1])? 1'b1:1'b0;
     assign {AIN1_PD,AIN2_PD,AIN3_PD,AIN4_PD} = 4'd0;                                       //锟斤拷锟斤拷模锟斤拷通锟斤拷锟斤拷锟斤拷锟脚猴拷
     assign {AIN1_RELAY1,AIN1_RELAY2} = {~(adc1_gain[1] | adc1_gain[0]), adc1_gain[0]};    //锟斤拷锟斤拷ADC锟斤拷锟斤拷锟斤拷   1/2:00/5V;    01/2.5V;     1X/5V
     assign {AIN2_RELAY1,AIN2_RELAY2} = {~(adc2_gain[1] | adc2_gain[0]), adc2_gain[0]};
     assign {AIN3_RELAY1,AIN3_RELAY2} = {~(adc3_gain[1] | adc3_gain[0]), adc3_gain[0]};
-    assign {AIN4_RELAY1,AIN4_RELAY2} = {~(adc4_gain[1] | adc4_gain[0]), adc4_gain[0]};       
+    assign {AIN4_RELAY1,AIN4_RELAY2} = {~(adc4_gain[1] | adc4_gain[0]), adc4_gain[0]};
     assign FAN          = 2'b01;                  //锟截闭凤拷锟斤拷
     assign UART_TX      = 1'b1;
     assign UART_EN      = 1'b1;
     assign TRIG_CLOCK   = 1'b0;
     assign TRIGGER_H    = 1'b0;
     assign TRIG_V       = 1'b0;
-    assign TRIG_BLANK   = sync_pixel_tri1;   
+    assign TRIG_BLANK   = sync_pixel_tri1;
     assign LED[7:4]     = {pll_ld,pll_ld,pll_ld,pll_ld};
 // FPGA_50M 是把内部 clk50m 通过 ODDR 翻到输出管脚，供板级其它器件使用。
 ODDR ODDR_CLK0 (
     .Q          (FPGA_50M),
     .C          (clk50m),
-    .CE         (1'b1), 
-    .D1         (1'b1), 
-    .D2         (1'b0), 
-    .R          (!locked), 
+    .CE         (1'b1),
+    .D1         (1'b1),
+    .D2         (1'b0),
+    .R          (!locked),
     .S          (1'b0)
     );
 //******************************************
 //-------------------ila--------------------
-//****************************************** 
+//******************************************
 //  ila_3 command_ila(
 //    .clk        (eth_clk),
 //    .probe0     (adc_len_single),   //21
@@ -878,15 +903,15 @@ ODDR ODDR_CLK0 (
 //    .probe14    (dacx_recovery_time),   //16
 //    .probe15    (dacy_strat_level),     //16
 //    .probe16    (dacy_end_level),       //16
-//    .probe17    (dacy_step),            //16     
+//    .probe17    (dacy_step),            //16
 //    .probe18    (adc_interval),         //24
 //    .probe19    (scan_mode),            //4
 //    .probe20    (scan_state),           //4
 //    .probe21    (dacx_step),            //16
 //    .probe22    (remote_result),        //32
 //    .probe23    (image_point)           //16
-//    );                
-    
+//    );
+
  ila_8 reg_ila(
     .clk        (eth_clk),
     .probe0     (WR_REG_VALID),
@@ -901,6 +926,6 @@ ODDR ODDR_CLK0 (
     .probe9     (remote_rx_done),
     .probe10    (remote_complete),
     .probe11    (remote_len)
-    );  
-    
+    );
+
 endmodule

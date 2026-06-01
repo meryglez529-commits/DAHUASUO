@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wave_config>
+   <wave_state>
+   </wave_state>
+   <db_ref_list>
+      <db_ref path="../out/sim/waveform.wdb" id="1">
+         <top_modules>
+            <top_module name="tb_laser_sync_blanker_ctrl" />
+         </top_modules>
+      </db_ref>
+   </db_ref_list>
+   <WVObjectSize size="30" />
+   <wave_markers>
+      <marker time="0" label="start" />
+   </wave_markers>
+   <wvobject type="divider" fp_name="divider_inputs">
+      <obj_property name="label">TB inputs</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/ui_clk" type="logic">
+      <obj_property name="ElementShortName">ui_clk</obj_property>
+      <obj_property name="ObjectShortName">ui_clk</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/rstn" type="logic">
+      <obj_property name="ElementShortName">rstn</obj_property>
+      <obj_property name="ObjectShortName">rstn</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/laser_mode_en" type="logic">
+      <obj_property name="ElementShortName">laser_mode_en</obj_property>
+      <obj_property name="ObjectShortName">laser_mode_en</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/scan_state" type="logic">
+      <obj_property name="ElementShortName">scan_state</obj_property>
+      <obj_property name="ObjectShortName">scan_state</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/laser_sync_in" type="logic">
+      <obj_property name="ElementShortName">laser_sync_in</obj_property>
+      <obj_property name="ObjectShortName">laser_sync_in</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/blanker_delay_time" type="array">
+      <obj_property name="ElementShortName">blanker_delay_time[15:0]</obj_property>
+      <obj_property name="ObjectShortName">blanker_delay_time[15:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/blanker_time" type="array">
+      <obj_property name="ElementShortName">blanker_time[15:0]</obj_property>
+      <obj_property name="ObjectShortName">blanker_time[15:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/acq_data_delay_time" type="array">
+      <obj_property name="ElementShortName">acq_data_delay_time[15:0]</obj_property>
+      <obj_property name="ObjectShortName">acq_data_delay_time[15:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/acq_time" type="array">
+      <obj_property name="ElementShortName">acq_time[15:0]</obj_property>
+      <obj_property name="ObjectShortName">acq_time[15:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/laser_period" type="array">
+      <obj_property name="ElementShortName">laser_period[31:0]</obj_property>
+      <obj_property name="ObjectShortName">laser_period[31:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="divider" fp_name="divider_outputs">
+      <obj_property name="label">DUT outputs</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/blanker_pulse" type="logic">
+      <obj_property name="ElementShortName">blanker_pulse</obj_property>
+      <obj_property name="ObjectShortName">blanker_pulse</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/laser_acq_pulse" type="logic">
+      <obj_property name="ElementShortName">laser_acq_pulse</obj_property>
+      <obj_property name="ObjectShortName">laser_acq_pulse</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/laser_event_busy" type="logic">
+      <obj_property name="ElementShortName">laser_event_busy</obj_property>
+      <obj_property name="ObjectShortName">laser_event_busy</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/pixel_done_pulse_ui" type="logic">
+      <obj_property name="ElementShortName">pixel_done_pulse_ui</obj_property>
+      <obj_property name="ObjectShortName">pixel_done_pulse_ui</obj_property>
+   </wvobject>
+   <wvobject type="divider" fp_name="divider_counts">
+      <obj_property name="label">Test counters</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/blanker_cnt" type="array">
+      <obj_property name="ElementShortName">blanker_cnt</obj_property>
+      <obj_property name="ObjectShortName">blanker_cnt</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/acq_cnt" type="array">
+      <obj_property name="ElementShortName">acq_cnt</obj_property>
+      <obj_property name="ObjectShortName">acq_cnt</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/busy_cnt" type="array">
+      <obj_property name="ElementShortName">busy_cnt</obj_property>
+      <obj_property name="ObjectShortName">busy_cnt</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/pixel_done_cnt" type="array">
+      <obj_property name="ElementShortName">pixel_done_cnt</obj_property>
+      <obj_property name="ObjectShortName">pixel_done_cnt</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/errors" type="array">
+      <obj_property name="ElementShortName">errors</obj_property>
+      <obj_property name="ObjectShortName">errors</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="divider" fp_name="divider_dut">
+      <obj_property name="label">DUT internals</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/dut/current_state" type="array">
+      <obj_property name="ElementShortName">current_state[1:0]</obj_property>
+      <obj_property name="ObjectShortName">current_state[1:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/dut/t_cnt" type="array">
+      <obj_property name="ElementShortName">t_cnt[31:0]</obj_property>
+      <obj_property name="ObjectShortName">t_cnt[31:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/dut/laser_pulse_edge" type="logic">
+      <obj_property name="ElementShortName">laser_pulse_edge</obj_property>
+      <obj_property name="ObjectShortName">laser_pulse_edge</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/dut/blanker_start_5ns" type="array">
+      <obj_property name="ElementShortName">blanker_start_5ns[31:0]</obj_property>
+      <obj_property name="ObjectShortName">blanker_start_5ns[31:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/dut/blanker_end_5ns" type="array">
+      <obj_property name="ElementShortName">blanker_end_5ns[31:0]</obj_property>
+      <obj_property name="ObjectShortName">blanker_end_5ns[31:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/dut/acq_start_5ns" type="array">
+      <obj_property name="ElementShortName">acq_start_5ns[31:0]</obj_property>
+      <obj_property name="ObjectShortName">acq_start_5ns[31:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject db_ref_id="1" fp_name="/tb_laser_sync_blanker_ctrl/dut/acq_end_5ns" type="array">
+      <obj_property name="ElementShortName">acq_end_5ns[31:0]</obj_property>
+      <obj_property name="ObjectShortName">acq_end_5ns[31:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+</wave_config>

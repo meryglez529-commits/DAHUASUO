@@ -1,0 +1,10 @@
+{
+  "name": "SGSC_SEM_325T_V3_172",
+  "fpga_ip": "192.168.1.8",
+  "host_ip": "0.0.0.0",
+  "local_port": 32000,
+  "remote_port": 32000,
+  "timeout_ms": 500,
+  "retries": 1,
+  "expected_version": "0x000300AC"
+}
