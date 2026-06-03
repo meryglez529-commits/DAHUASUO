@@ -20,6 +20,9 @@
 //   TC10 多像素行内 DAX 在 DAC 引脚逐像素正确（FIFO 残留不破坏功能）
 //   TC11 DAC 数据路径延迟随 FIFO 水位变化（高水位 vs 低水位，差值 ≈ 残留×20ns）
 //   TC12 行末斜坡排空 → 下一行第 1 个像素 DAX = dacx_strat（line-end drain 约束）
+//   TC13 dax_fall 边界扫描：laser → DAX 切换延迟随 dax_fall 增大撞墙（DL5_UNIT_003）
+//   TC14 三延迟矩阵扫描（DL5_UNIT_003）：同时测 laser → DAX/ACQ/BLK，验证
+//        独立路径（acq/blanker）不受 FIFO 水位影响
 //
 // 时钟：
 //   eth_clk  = 125MHz (8ns)
@@ -835,6 +838,259 @@ initial begin
         end
     end
     if (errors == 0) $display("[TC12] PASS");
+
+    // ========================================================================
+    // TC13: DL5_UNIT_003 参数边界测试
+    //
+    // 目标：固定 laser 周期 = 2µs（客户最快），扫 dax_fall_time 找撞墙边界。
+    // 方法：每个 dax_fall 配置走完 1 行后，在 State 14 进入瞬间 inject laser，
+    //       测 laser → DAX 切到 dacx_strat 的延迟。如果延迟 > 200ns，说明
+    //       FIFO 残留太多，该 dax_fall 在 2µs laser 周期下撞墙。
+    // ========================================================================
+    $display("");
+    $display("[TC13] Parameter boundary scan: dax_fall vs laser=2us ...");
+    begin: tc13_scan
+        integer i;
+        reg [31:0] dax_fall_values [0:4];
+        time t_laser, t_dax_change, delay_ns;
+
+        dax_fall_values[0] = 32'd1;  // 0.5 µs 太小，最小 1
+        dax_fall_values[1] = 32'd1;
+        dax_fall_values[2] = 32'd2;
+        dax_fall_values[3] = 32'd3;
+        dax_fall_values[4] = 32'd5;
+
+        for (i = 0; i < 5; i = i + 1) begin
+            // 配置
+            stop_scan();
+            repeat (200) @(posedge eth_clk);
+            laser_mode_en       = 1'b1;
+            scan_delay_time     = 16'd5;
+            acq_data_delay_time = 16'd2;
+            acq_time            = 16'd5;
+            dac_sample          = 32'd30;
+            dacx_tk_point       = 16'd3;
+            dax_fall_time       = dax_fall_values[i];
+            dacx_recovery_time  = 16'd1;  // 固定 1µs
+            image_row           = 16'd5;
+            dacx_strat_level    = 16'h2000;
+            dacx_end_level      = 16'h2100;  // pp = 0x100
+            dacx_step           = 64'h0100_0000_0000_0000;
+            start_scan();
+            repeat (100) @(posedge eth_clk);
+
+            // 走完第 1 行（3 个像素）
+            inject_laser(); repeat (300) @(posedge eth_clk);
+            inject_laser(); repeat (300) @(posedge eth_clk);
+            inject_laser(); repeat (300) @(posedge eth_clk);
+
+            // 等下一行 State 14
+            wait (dut_state == 5'd14);
+            repeat (10) @(posedge eth_clk);
+
+            // 立刻 inject laser（模拟 laser 周期 = 状态机时间）
+            t_laser = $time;
+            inject_laser();
+
+            // 等 DAX 切到 dacx_strat (0x2000)
+            wait (DAX_DATA == 16'h2000);
+            t_dax_change = $time;
+            delay_ns = t_dax_change - t_laser;
+
+            $display("[TC13.%0d] dax_fall=%0d us, rec=1 us -> delay=%0d ns %s",
+                     i, dax_fall_values[i], delay_ns,
+                     (delay_ns < 200) ? "OK" : "WARN: approaching limit");
+        end
+
+        $display("[TC13] Boundary scan complete. Check delays above.");
+        $display("[TC13] PASS (informational test, no hard failure)");
+    end
+
+    // ========================================================================
+    // TC14: 三延迟矩阵扫描 (DL5_UNIT_003)
+    //
+    // 在最坏 FIFO 压力下（行尾刚走完 State 13 + State 14 短）同时测三个延迟：
+    //   1) delay_DAX = laser → DAX_DATA = dacx_strat
+    //                  数据通路（经 FIFO），FIFO 残留主导
+    //   2) delay_ACQ = laser → acq_pulse_ui rise
+    //                  独立 toggle-FF 桥（eth_clk → ui_clk → dac_dco），不经 FIFO
+    //   3) delay_BLK = laser → sync_pixel_tri1 fall
+    //                  与 acq 共享同一条 toggle-FF 桥（eth_clk → ui_clk），不经 FIFO
+    //
+    // 验证目标：
+    //   A. delay_DAX 随 dax_fall 增大而退化（量化 FIFO 压力影响）
+    //   B. delay_ACQ / delay_BLK 在所有 dax_fall 下保持稳定
+    //      （独立路径不变量：max-min spread < 20ns）
+    // ========================================================================
+    tc_id = 14;
+    $display("");
+    $display("[TC14] Three-delay matrix scan (laser -> DAX/ACQ/BLK) ...");
+    begin: tc14_scan
+        integer i;
+        reg [31:0] dax_fall_values [0:3];
+        time t_laser, t_dax, t_acq, t_blk;
+        time delay_DAX, delay_ACQ, delay_BLK;
+        integer fired_dax, fired_acq, fired_blk;
+        time min_acq, max_acq, min_blk, max_blk;
+        time min_dax, max_dax;
+
+        dax_fall_values[0] = 32'd1;
+        dax_fall_values[1] = 32'd2;
+        dax_fall_values[2] = 32'd3;
+        dax_fall_values[3] = 32'd5;
+
+        min_acq = 64'hFFFF_FFFF; max_acq = 0;
+        min_blk = 64'hFFFF_FFFF; max_blk = 0;
+        min_dax = 64'hFFFF_FFFF; max_dax = 0;
+
+        for (i = 0; i < 4; i = i + 1) begin : tc14_loop
+            time t_laser, t_dax, t_acq, t_blk;
+            time delay_DAX, delay_ACQ, delay_BLK;
+            integer fired_dax, fired_acq, fired_blk;
+            reg [15:0] dax_before;
+
+            // ---- 配置 + 走完一行制造 FIFO 压力 ----
+            stop_scan();
+            repeat (200) @(posedge eth_clk);
+            laser_mode_en       = 1'b1;
+            scan_delay_time     = 16'd5;
+            acq_data_delay_time = 16'd2;
+            acq_time            = 16'd5;
+            blanker_delay_time  = 16'd10;
+            blanker_time        = 16'd20;
+            dac_sample          = 32'd30;
+            dacx_tk_point       = 16'd3;
+            dax_fall_time       = dax_fall_values[i];
+            dacx_recovery_time  = 16'd1;
+            image_row           = 16'd5;
+            dacx_strat_level    = 16'h2000;
+            dacx_end_level      = 16'h2100;
+            dacx_step           = 64'h0100_0000_0000_0000;
+            start_scan();
+            repeat (100) @(posedge eth_clk);
+
+            inject_laser(); repeat (300) @(posedge eth_clk);
+            inject_laser(); repeat (300) @(posedge eth_clk);
+            inject_laser(); repeat (300) @(posedge eth_clk);
+
+            // ---- 进 State 14 + 等信号回 idle ----
+            wait (dut_state == 5'd14);
+            repeat (10) @(posedge eth_clk);
+
+            // 等 acq_pulse_ui 回到 idle 低电平（确保 posedge 可用）
+            wait (dut_acq_pulse_ui == 1'b0);
+            repeat (5) @(posedge eth_clk);
+
+            // 等 sync_pixel_tri1 回到 idle 高电平（确保 negedge 可用）
+            wait (sync_pixel_tri1 == 1'b1);
+            repeat (5) @(posedge eth_clk);
+
+            // ---- 同步注入 laser ----
+            fired_dax = 0;
+            fired_acq = 0;
+            fired_blk = 0;
+            dax_before = DAX_DATA;
+            inject_laser();
+            t_laser = $time;
+
+            // ---- 测量 1: DAX 切换延迟 ----
+            fork
+                begin : wait_dax
+                    wait (DAX_DATA != dax_before);
+                    t_dax = $time;
+                    fired_dax = 1;
+                end
+                begin : timeout_dax
+                    #5000;
+                    disable wait_dax;
+                end
+            join
+
+            // ---- 测量 2: ACQ 延迟 ----
+            fork
+                begin : wait_acq
+                    @(posedge dut_acq_pulse_ui);
+                    t_acq = $time;
+                    fired_acq = 1;
+                end
+                begin : timeout_acq
+                    #2000;
+                    disable wait_acq;
+                end
+            join
+
+            // ---- 测量 3: BLK 延迟 ----
+            fork
+                begin : wait_blk
+                    @(negedge sync_pixel_tri1);
+                    t_blk = $time;
+                    fired_blk = 1;
+                end
+                begin : timeout_blk
+                    #2000;
+                    disable wait_blk;
+                end
+            join
+
+            delay_DAX = fired_dax ? (t_dax - t_laser) : 64'd9999000;
+            delay_ACQ = fired_acq ? (t_acq - t_laser) : 64'd9999000;
+            delay_BLK = fired_blk ? (t_blk - t_laser) : 64'd9999000;
+
+            $display("[TC14.%0d] dax_fall=%0d us | DAX=%0d ns  ACQ=%0d ns  BLK=%0d ns%s%s%s",
+                     i, dax_fall_values[i],
+                     delay_DAX/1000, delay_ACQ/1000, delay_BLK/1000,
+                     fired_dax ? "" : " (DAX_TIMEOUT)",
+                     fired_acq ? "" : " (ACQ_TIMEOUT)",
+                     fired_blk ? "" : " (BLK_TIMEOUT)");
+
+            // 记录每路 min/max（仅在 fire 时）
+            if (fired_dax) begin
+                if (delay_DAX < min_dax) min_dax = delay_DAX;
+                if (delay_DAX > max_dax) max_dax = delay_DAX;
+            end
+            if (fired_acq) begin
+                if (delay_ACQ < min_acq) min_acq = delay_ACQ;
+                if (delay_ACQ > max_acq) max_acq = delay_ACQ;
+            end
+            if (fired_blk) begin
+                if (delay_BLK < min_blk) min_blk = delay_BLK;
+                if (delay_BLK > max_blk) max_blk = delay_BLK;
+            end
+
+            // 单点合理性断言（loose bounds，主要兜底 timeout）
+            if (!fired_acq) begin
+                $display("[TC14.%0d FAIL] acq_pulse_ui never rose", i);
+                errors = errors + 1;
+            end
+            if (!fired_blk) begin
+                $display("[TC14.%0d FAIL] sync_pixel_tri1 never fell", i);
+                errors = errors + 1;
+            end
+            if (!fired_dax) begin
+                $display("[TC14.%0d FAIL] DAX never reached dacx_strat", i);
+                errors = errors + 1;
+            end
+        end
+
+        // ---- 独立路径不变量断言：ACQ/BLK 跨 dax_fall 应稳定 ----
+        $display("[TC14] Spread: DAX=[%0d..%0d] ns  ACQ=[%0d..%0d] ns  BLK=[%0d..%0d] ns",
+                 min_dax/1000, max_dax/1000,
+                 min_acq/1000, max_acq/1000,
+                 min_blk/1000, max_blk/1000);
+        if (max_acq - min_acq > 20000) begin
+            $display("[TC14 FAIL] ACQ spread > 20 ns (independent path violated): %0d ns",
+                     (max_acq - min_acq)/1000);
+            errors = errors + 1;
+        end
+        if (max_blk - min_blk > 20000) begin
+            $display("[TC14 FAIL] BLK spread > 20 ns (independent path violated): %0d ns",
+                     (max_blk - min_blk)/1000);
+            errors = errors + 1;
+        end
+
+        $display("[TC14] Three-delay scan complete.");
+        if (errors == 0) $display("[TC14] PASS");
+    end
 
     // -------- Summary --------
     repeat (100) @(posedge eth_clk);

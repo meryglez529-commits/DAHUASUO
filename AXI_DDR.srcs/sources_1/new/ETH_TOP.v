@@ -150,9 +150,7 @@ module ETH_TOP(
     output          TRIG_CLOCK,
     output          TRIGGER_H,
     output          TRIG_V,
-    output          TRIG_BLANK,
-    // DL5 激光同步模式：来自外部激光器的异步 TTL 触发输入
-    input           laser_sync_in
+    output          TRIG_BLANK
     );
 
 //------------------------------------------------------------------------------
@@ -220,6 +218,10 @@ module ETH_TOP(
     wire [15:0]     blanker_time;
     wire [15:0]     acq_data_delay_time;
     wire [15:0]     acq_time;
+    wire            laser_sync_in_reuse;
+
+    // DL5 reuses the physical TRIGGER_IN/D15 input as laser_sync_in only in laser mode.
+    assign laser_sync_in_reuse = laser_mode_en ? TRIGGER_IN : 1'b0;
 //******************************************
 //--------------------PLL-------------------
 //******************************************
@@ -694,7 +696,7 @@ dacdata_config U6(
     .blanker_time       (blanker_time),
     .acq_data_delay_time(acq_data_delay_time),
     .acq_time           (acq_time),
-    .laser_sync_in      (laser_sync_in),
+    .laser_sync_in      (laser_sync_in_reuse),
 
     .sync_pixel_tri1    (sync_pixel_tri1),
     .sync_pixel_tri2    (sync_pixel_tri2),

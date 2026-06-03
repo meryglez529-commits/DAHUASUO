@@ -471,17 +471,17 @@ always@(posedge ui_clk or negedge ui_rstn)
  else
     sync_pixel_tri1 <= 1'b0;
 
-// ILA 调试：观察 sync1 原始输入、宽度、状态机、计数器和最终外部输出。
+// ILA 调试：激光模式下观察 laser_pulse_ui 是否进入 sync1/blanker 整形器。
 ila_1 sync1_test (
 	.clk(ui_clk), // input wire clk
 
 
-	.probe0(sync1_pixel_tri_r1), // input wire [0:0]  probe0
-	.probe1(sync1_pixel_tri_wigth_r), // input wire [31:0]  probe1
+	.probe0(sync1_trig_used), // input wire [0:0]  probe0
+	.probe1(sync1_width_used), // input wire [31:0]  probe1
 	.probe2(sync1_state), // input wire [3:0]  probe2
-	.probe3(sync_pixel_tri1_reg), // input wire [0:0]  probe3
+	.probe3(laser_pulse_ui), // input wire [0:0]  probe3
 	.probe4(sync_sig_delay1_cnt), // input wire [31:0]  probe4
-	.probe5(sync_sig_delay1), // input wire [15:0]  probe5
+	.probe5(sync1_delay_used), // input wire [15:0]  probe5
 	.probe6(sync_pixel_tri1) // input wire [0:0]  probe6
 );
 

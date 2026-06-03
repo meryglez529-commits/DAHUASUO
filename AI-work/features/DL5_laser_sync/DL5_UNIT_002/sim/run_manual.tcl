@@ -128,13 +128,8 @@ if {![file exists $snapshot_path]} {
 
 # 用 Vivado 内置的 xsim 命令
 cd $sim_dir
-if {[catch {xsim tb_dl5_unit_002_behav -log [file join $sim_dir "xsim.log"]} xsim_err]} {
-    puts "ERROR: xsim open failed: $xsim_err"
-    cd $orig_dir
-    close_project
-    exit 1
-}
 puts "INFO: xsim snapshot loaded, running..."
+xsim tb_dl5_unit_002_behav -log [file join $sim_dir "xsim.log"]
 run all
 set xsim_out ""
 catch {set xsim_out [read [open [file join $sim_dir "xsim.log"] r]]}

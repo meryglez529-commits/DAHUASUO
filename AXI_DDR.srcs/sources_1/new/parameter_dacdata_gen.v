@@ -71,6 +71,10 @@ module parameter_dacdata_gen(
     input           laser_sync_rise_eth,        // eth_clk 域，已 CDC + 边沿检测的 laser 脉冲
     input   [15:0]  scan_delay_time,            // 8ns 步进 (eth_clk 周期)
     output reg      laser_toggle,               // 给 dac_output 做触发独立 CDC 的 toggle 信号
+    output [4:0]    dl5_dbg_current_state,
+    output [15:0]   dl5_dbg_scan_delay_cnt,
+    output [31:0]   dl5_dbg_dac_sample_cnt,
+    output [15:0]   dl5_dbg_dacx_tk_point_cnt,
 
     // 写给 dac_output 内部异步 FIFO 的 35-bit 参数流。
     output reg      para_config_wr_en,
@@ -126,6 +130,7 @@ reg [15:0]  DAY_DATA;            // fifo[15:0]
 wire        fifo_bit32 = laser_mode_en ? 1'b0 : adc_tri;
 wire        fifo_bit33 = laser_mode_en ? 1'b0 : sync_pixel_tri1;
 wire        fifo_bit34 = laser_mode_en ? 1'b0 : sync_pixel_tri2;
+wire        line_start_allowed = laser_mode_en || (clk_sel == 1'b0) || TRIGGER_IN;
 assign      para_config_data = {fifo_bit34, fifo_bit33, fifo_bit32, DAX_DATA, DAY_DATA};
 
 //------------------------------------------------------------------------------
@@ -199,6 +204,7 @@ reg [15:0]  remain_cnt;
 reg [15:0]  step_count;
 
 reg [31:0]  dax_fall_cnt;
+reg         s13_wait_cnt;  // C3-lite: State 13 等待计数器（0~1）
 reg [35:0]  dacx_tb_point;
 
 // DL5 激光模式新增计数器
@@ -208,6 +214,11 @@ reg [15:0]  scan_delay_cnt;
 // 之后纯计时不写，让读侧消化 State 13 留下的 FIFO 积压。
 // 写满 2 次后停止写，dacx_tb_point_cnt 仍跑满（行间隔不变）。
 reg [1:0]   s2_write_cnt;
+
+assign dl5_dbg_current_state     = current_state;
+assign dl5_dbg_scan_delay_cnt    = scan_delay_cnt;
+assign dl5_dbg_dac_sample_cnt    = dac_sample_cnt;
+assign dl5_dbg_dacx_tk_point_cnt = dacx_tk_point_cnt;
 
 //------------------------------------------------------------------------------
 // 4. 主状态机：把一帧扫描拆成“线首等待 -> 像素采样 -> 线尾回扫 -> 换线/换帧”
@@ -255,6 +266,7 @@ begin
         step_count          <= 0;
 
         dax_fall_cnt        <= 0;
+        s13_wait_cnt        <= 0;  // C3-lite
 
         // DL5 激光模式信号复位
         scan_delay_cnt      <= 16'd0;
@@ -289,29 +301,22 @@ begin
         // State 1: 等待一条扫描线真正开始。
         //
         // clk_sel=1 时，每条扫描线都要等外部 TRIGGER_IN 脉冲，适合和外部设备同步；
-        // clk_sel=0 时自由运行。Tb=0 则直接进像素采样窗口，否则先输出 Tb 段。
+        // 激光模式下 D15/TRIGGER_IN 已复用为 laser_sync_in，因此这里直接放行行首，
+        // 真正的逐像素推进交给 State 14 等 laser 上升沿。
         1:
         begin
             para_config_wr_en       <= 1'b0;
             sync_pixel_tri1          <= 1'b0;
             sync_pixel_tri2          <= 1'b0;
             adc_tri                 <= 1'b0;
-            if(clk_sel == 1)begin
-             	 if(TRIGGER_IN)begin
-             	 		if(dacx_tb_point == 0)                              // Tb=0: skip recovery, enter Tk directly.
-		                  current_state       <= 3;
-		              else                                                // Tb>0: output recovery samples first.
-		                  current_state       <= 2;
-             	 end
-          		 else
-          		 		current_state       <= 1;
+            if(line_start_allowed) begin
+                if(dacx_tb_point == 0)                              // Tb=0: skip recovery, enter Tk directly.
+                    current_state       <= 3;
+                else                                                // Tb>0: output recovery samples first.
+                    current_state       <= 2;
             end
-            else begin
-		            if(dacx_tb_point == 0)                              // Tb=0: skip recovery, enter Tk directly.
-		                current_state       <= 3;
-		            else                                                // Tb>0: output recovery samples first.
-		                current_state       <= 2;
-	          end
+            else
+                current_state       <= 1;
         end
 
         // State 2: Tb 线首恢复段。
@@ -453,19 +458,44 @@ begin
         13:
         begin
             if(para_config_prog_full==0 && para_config_wr_rst_busy==0) begin
-                para_config_wr_en       <= 1'b1;
                 adc_tri                 <= 1'b0;
-                sync_pixel_tri1          <= 1'b0;
-                sync_pixel_tri2          <= 1'b0;
-                DAX_DATA                <= dax_level[63:48];
-                DAY_DATA                <= day_level[63:48];
-                if(dax_fall_cnt < dax_fall_time - 1) begin
-                    current_state       <= 12;
-                    dax_fall_cnt        <= dax_fall_cnt + 1'b1;
-                end
-                else begin
-                    current_state       <= 5;
-                    dax_fall_cnt        <= 0;
+                sync_pixel_tri1         <= 1'b0;
+                sync_pixel_tri2         <= 1'b0;
+
+                // C3-lite: 激光模式限速到 3 拍/word（写速率 ~41.67MHz < 50MHz 读侧）
+                // 第 1 拍写 1 个 word，第 2 拍等待不写（避免重复写 FIFO）
+                if (laser_mode_en) begin
+                    if (s13_wait_cnt < 1'd1) begin
+                        // 第 1 拍：写 word
+                        para_config_wr_en   <= 1'b1;
+                        DAX_DATA            <= dax_level[63:48];
+                        DAY_DATA            <= day_level[63:48];
+                        s13_wait_cnt        <= s13_wait_cnt + 1'b1;
+                        current_state       <= 13;
+                    end else begin
+                        // 第 2 拍：等待，不写
+                        para_config_wr_en   <= 1'b0;
+                        s13_wait_cnt        <= 0;
+                        if(dax_fall_cnt < dax_fall_time - 1) begin
+                            current_state   <= 12;
+                            dax_fall_cnt    <= dax_fall_cnt + 1'b1;
+                        end else begin
+                            current_state   <= 5;
+                            dax_fall_cnt    <= 0;
+                        end
+                    end
+                end else begin
+                    // 普通模式：保持 2 拍/word（原行为不变）
+                    para_config_wr_en       <= 1'b1;
+                    DAX_DATA                <= dax_level[63:48];
+                    DAY_DATA                <= day_level[63:48];
+                    if(dax_fall_cnt < dax_fall_time - 1) begin
+                        current_state   <= 12;
+                        dax_fall_cnt    <= dax_fall_cnt + 1'b1;
+                    end else begin
+                        current_state   <= 5;
+                        dax_fall_cnt    <= 0;
+                    end
                 end
             end
             else
@@ -702,6 +732,7 @@ begin
             step_count          <= 0;
 
             dax_fall_cnt        <= 0;
+            s13_wait_cnt        <= 0;  // C3-lite
 
             // DL5 激光模式信号在 default 分支同样复位
             scan_delay_cnt      <= 16'd0;

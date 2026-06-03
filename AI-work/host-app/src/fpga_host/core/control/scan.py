@@ -29,6 +29,17 @@ class ScanConfig:
     adc_len_single: int | None = None
     adc_interval: int = 0
     scan_mode: int = 1
+    # DAC 扫描几何（必须写，否则 FPGA 不会计算 dacx_step，DAC 输出恒为中点）。
+    # 默认值取自已验证可正常出波形的板上配置（10%~90% 量程）。
+    # 注意：写 0x0006 是触发 dacx_step 除法器的唯一时机，绝不能省略。
+    dacx_strat_level: int = 0x1999
+    dacx_end_level: int = 0xE665
+    dacx_recovery_time: int = 50
+    dacy_strat_level: int = 0x3BBB
+    dacy_end_level: int = 0xC443
+    dax_fall_time: int = 20
+    # dacx_tk_point（每行像素数）默认跟随 cols；显式设置可覆盖。
+    dacx_tk_point: int | None = None
 
     def validate(self) -> None:
         _u16("rows", self.rows)
@@ -45,11 +56,32 @@ class ScanConfig:
         adc_len = self.effective_adc_len_single()
         if not 0 <= adc_len <= 0x1FFFFF:
             raise ConfigError("adc_len_single must fit in 21 bits")
+        # DAC 扫描几何校验
+        _u16("dacx_strat_level", self.dacx_strat_level)
+        _u16("dacx_end_level", self.dacx_end_level)
+        _u16("dacx_recovery_time", self.dacx_recovery_time)
+        _u16("dacy_strat_level", self.dacy_strat_level)
+        _u16("dacy_end_level", self.dacy_end_level)
+        if not 0 <= self.dax_fall_time <= 0xFFFFFFFF:
+            raise ConfigError("dax_fall_time must fit in 32 bits")
+        tk_point = self.effective_dacx_tk_point()
+        _u16("dacx_tk_point", tk_point)
+        if tk_point == 0:
+            raise ConfigError("dacx_tk_point must be non-zero (FPGA divides by it for dacx_step)")
+        if self.dacx_strat_level == self.dacx_end_level:
+            raise ConfigError(
+                "dacx_strat_level == dacx_end_level gives dacx_step=0 (DAC X will not sweep)"
+            )
 
     def effective_adc_len_single(self) -> int:
         if self.adc_len_single is not None:
             return self.adc_len_single
         return self.rows * self.cols
+
+    def effective_dacx_tk_point(self) -> int:
+        if self.dacx_tk_point is not None:
+            return self.dacx_tk_point
+        return self.cols
 
     def to_registers(self, scan_state: int = 0) -> list[tuple[int, int]]:
         self.validate()
@@ -59,10 +91,18 @@ class ScanConfig:
         sample = self.adc_sample
         image_size = (self.rows << 16) | self.cols
         scan_control = (self.adc_interval << 8) | (self.scan_mode << 4) | scan_state
+        dacx_range = (self.dacx_strat_level << 16) | self.dacx_end_level
+        # 0x0006 写入会脉冲 dacx_step_flag，触发 FPGA 重算 dacx_step；必须写。
+        dacx_point_recovery = (self.effective_dacx_tk_point() << 16) | self.dacx_recovery_time
+        dacy_range = (self.dacy_strat_level << 16) | self.dacy_end_level
         return [
             (0x0001, adc_cfg),
             (0x0002, sample),
             (0x0004, image_size),
+            (0x0005, dacx_range),
+            (0x0006, dacx_point_recovery),
+            (0x0007, dacy_range),
+            (0x000F, self.dax_fall_time),
             (0x0009, scan_control),
         ]
 
@@ -79,4 +119,13 @@ class ScanConfig:
             ),
             adc_interval=int(data.get("adc_interval", 0)),
             scan_mode=int(data.get("scan_mode", 1)),
+            dacx_strat_level=int(data.get("dacx_strat_level", 0x1999)),
+            dacx_end_level=int(data.get("dacx_end_level", 0xE665)),
+            dacx_recovery_time=int(data.get("dacx_recovery_time", 50)),
+            dacy_strat_level=int(data.get("dacy_strat_level", 0x3BBB)),
+            dacy_end_level=int(data.get("dacy_end_level", 0xC443)),
+            dax_fall_time=int(data.get("dax_fall_time", 20)),
+            dacx_tk_point=(
+                None if data.get("dacx_tk_point") is None else int(data["dacx_tk_point"])
+            ),
         )

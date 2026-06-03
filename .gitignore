@@ -13,6 +13,7 @@ AXI_DDR.tmp/
 *.pb
 *.wdb
 *.vcd
+*.str
 .Xil/
 xsim.dir/
 hw_ila_data_*.btree
@@ -21,3 +22,11 @@ ip_upgrade.log
 # AI-work runtime (assets under AI-work/ are tracked, only specific subdirs ignored — see AI-work/.gitignore)
 AI-work/sim_out/
 AI-work/reports/
+
+# DL5 unit 调试/综合输出（bitstream、时序报告、ILA 抓取 CSV 等生成物，可重新生成）
+AI-work/features/**/out/
+
+# 器件数据手册（参考资料，不进代码库）
+sem-*.pdf
+*.rar
+*.zip

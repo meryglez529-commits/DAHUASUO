@@ -69,6 +69,10 @@ def _scan_label(address: int) -> str:
         0x0001: "ADC length/channel",
         0x0002: "Sample count",
         0x0004: "Image size",
+        0x0005: "DAC X range",
+        0x0006: "DAC X point/recovery (triggers dacx_step)",
+        0x0007: "DAC Y range",
+        0x000F: "X fall time",
         0x0009: "Scan control",
     }.get(address, f"Register {hex16(address)}")
 

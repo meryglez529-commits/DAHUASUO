@@ -142,6 +142,8 @@ begin
 end
 wire  TRIGGER_IN_Rise;
 assign  TRIGGER_IN_Rise = ((!TRIGGER_IN_r1)&&TRIGGER_IN_r0);
+wire  normal_trigger_in_rise;
+assign normal_trigger_in_rise = laser_mode_en ? 1'b0 : TRIGGER_IN_Rise;
 
 //------------------------------------------------------------------------------
 // DL5: laser_sync_in 异步输入 → eth_clk 域 3 级 FF + 上升沿检测
@@ -159,6 +161,10 @@ wire laser_sync_rise_eth = laser_sync_r1 && ~laser_sync_r2;
 
 // laser_toggle 是 parameter_dacdata_gen 输出，传给 dac_output 做 ui_clk 跨域
 wire laser_toggle;
+wire [4:0]  dl5_dbg_current_state;
+wire [15:0] dl5_dbg_scan_delay_cnt;
+wire [31:0] dl5_dbg_dac_sample_cnt;
+wire [15:0] dl5_dbg_dacx_tk_point_cnt;
 //-------------------------------------------------------------------
 wire        para_config_wr_en;
 wire [34:0] para_config_data;
@@ -186,7 +192,7 @@ parameter_dacdata_gen N1(
     .row_n                  (row_n),
     .clk_sel								( clk_sel),
 
-    .TRIGGER_IN							(TRIGGER_IN_Rise),
+    .TRIGGER_IN							(normal_trigger_in_rise),
     .ultrafast_mode         (ultrafast_mode),
     .ultrafast_line_rec     (ultrafast_line_rec),
 
@@ -195,12 +201,29 @@ parameter_dacdata_gen N1(
     .laser_sync_rise_eth    (laser_sync_rise_eth),
     .scan_delay_time        (scan_delay_time),
     .laser_toggle           (laser_toggle),
+    .dl5_dbg_current_state  (dl5_dbg_current_state),
+    .dl5_dbg_scan_delay_cnt (dl5_dbg_scan_delay_cnt),
+    .dl5_dbg_dac_sample_cnt (dl5_dbg_dac_sample_cnt),
+    .dl5_dbg_dacx_tk_point_cnt(dl5_dbg_dacx_tk_point_cnt),
 
     .para_config_wr_en      (para_config_wr_en),
     .para_config_data       (para_config_data),
     .para_config_prog_full  (para_config_prog_full),
     .para_config_wr_rst_busy(para_config_wr_rst_busy)
     );
+
+// DL5 debug ILA (eth_clk domain).
+// probe2 packs {laser_mode_en, scan_state, laser_sync_rise_eth, laser_toggle}.
+ila_1 dl5_eth_debug (
+    .clk(eth_clk),
+    .probe0(laser_sync_in),
+    .probe1({27'd0, dl5_dbg_current_state}),
+    .probe2({laser_mode_en, scan_state, laser_sync_rise_eth, laser_toggle}),
+    .probe3(laser_sync_rise_eth),
+    .probe4(dl5_dbg_dac_sample_cnt),
+    .probe5(dl5_dbg_scan_delay_cnt),
+    .probe6(laser_toggle)
+);
 //--------------------------------------------------------------------
 dac_output N2(
     .eth_clk                (eth_clk),
