@@ -230,39 +230,52 @@ AI-work/features/DL5_laser_sync/DL5_UNIT_003/out/bitstream/ETH_TOP_unit003.bit
 | **L5 blanker/acq 输出** | 触发激光输入，示波器看 `TRIG_BLANK`（blanker）和 `TRIGGER_OUT`（acq） | 延迟符合 `0x0207`（blanker_delay）和 `0x0209`（acq_delay），脉宽符合 `0x0208` / `0x020A` | CDC 路径问题 / 状态机卡死 |
 | **L6 DAC 坐标切换** | 配置 DL5 参数，触发激光，示波器看 DAC_X 输出 | 激光后 ~80ns 切到新坐标 | FIFO 路径问题 / State 16 未触发 |
 | **L7 行末跨行延迟** | 跑完一行，立刻触发下一个激光 | DAC_X 延迟 < 200ns（实测应 ~48ns） | State 13 限速未生效 / FIFO 积压 |
-| **L8 参数边界** | 扫描 dax_fall ∈ {1, 2, 3, 5} µs | 全部跨行延迟 < 200ns | C3-lite 未生效 |
-| **L9 完整帧采集** | 跑 512×512 激光同步扫描，保存 ADC 数据 | 图像无撕裂、坐标对齐 | 系统级时序问题 |
+| **L8 参数边界** | 先只跑 dax_fall=1µs；需要边界时再扫 {1, 2} µs | 全部跨行延迟 < 200ns | C3-lite 未生效 |
+| **L9 小帧采集** | 先跑 16×16 激光同步扫描，确认后再放大 | 图像无撕裂、坐标对齐 | 系统级时序问题 |
 
 ### 5.2 关键寄存器操作（上位机 CLI 命令示例）
 
 假设上位机 CLI 已实现（见 [HOST_APP_ARCHITECTURE.md](../../../host-app/HOST_APP_ARCHITECTURE.md)）：
+
+> 推荐先用小参数冒烟：`rows=16`、`cols=16`、`adc/dac_sample=4`。
+> `0x0006=0x00100005` 表示 `dacx_tk_point/tb=16`、`dacx_recovery_time=5`；
+> `0x000F=1` 表示 `dax_fall_time=1µs`。
+> 激光模式小参数：`scan_delay=2`(16ns)、`blanker_delay=10`(50ns)、`blanker_time=20`(100ns)、`acq_delay=5`(100ns)、`acq_time=5`(100ns)。
+> 注意：当前 CLI 的 `mode ... apply` 会用默认值写一次 `0x0006/0x000F`，所以下面示例采用“apply 不启动 → 覆盖小 tb/fall → start”的顺序。
 
 ```powershell
 # L1: 读版本号
 fpga-host version --json
 fpga-host read 0x000A --json
 
-# L2: 普通扫描（不开激光模式）
-fpga-host mode normal apply --rows 128 --cols 128 --adc-sample 20 --dac-sample 20 --adc-channel 4 --scan-mode 1 --yes --start-after --json
+# L2: 普通扫描（不开激光模式，小参数）
+fpga-host mode normal apply --rows 16 --cols 16 --adc-sample 4 --dac-sample 4 --adc-channel 4 --scan-mode 1 --yes --json
+fpga-host write-checked 0x0006 0x00100005 --yes --json
+fpga-host write-checked 0x000F 1 --yes --json
+fpga-host start --scan-mode 1 --yes --json
 
 # L3: 使能激光模式
 fpga-host write-checked 0x0205 1 --yes --json
 fpga-host read 0x0205 --json  # 应返回 1
 
-# L4~L8: 配置 DL5 参数
+# L4~L8: 配置 DL5 小参数
 fpga-host mode laser apply `
-  --rows 512 --cols 512 --adc-sample 20 --dac-sample 20 --adc-channel 4 --scan-mode 1 `
-  --laser-mode 1 --scan-delay 10 --blanker-delay 100 --blanker-time 100 --acq-delay 30 --acq-time 25 `
-  --yes --start-after --json
+  --rows 16 --cols 16 --adc-sample 4 --dac-sample 4 --adc-channel 4 --scan-mode 1 `
+  --laser-mode 1 --scan-delay 2 --blanker-delay 10 --blanker-time 20 --acq-delay 5 --acq-time 5 `
+  --yes --json
+fpga-host write-checked 0x0006 0x00100005 --yes --json
+fpga-host write-checked 0x000F 1 --yes --json
+fpga-host start --scan-mode 1 --yes --json
 
 # L8: dax_fall 边界扫描（寄存器 0x000F，单位按 RTL 为 µs，内部 ×50）
 fpga-host write-checked 0x000F 1 --yes --json
 fpga-host write-checked 0x000F 2 --yes --json
-fpga-host write-checked 0x000F 3 --yes --json
-fpga-host write-checked 0x000F 5 --yes --json
 
-# L9: 激光同步扫描
-fpga-host mode laser apply --rows 512 --cols 512 --adc-sample 20 --dac-sample 20 --adc-channel 4 --scan-mode 1 --laser-mode 1 --scan-delay 10 --blanker-delay 100 --blanker-time 100 --acq-delay 30 --acq-time 25 --yes --start-after --json
+# L9: 小帧激光同步扫描
+fpga-host mode laser apply --rows 16 --cols 16 --adc-sample 4 --dac-sample 4 --adc-channel 4 --scan-mode 1 --laser-mode 1 --scan-delay 2 --blanker-delay 10 --blanker-time 20 --acq-delay 5 --acq-time 5 --yes --json
+fpga-host write-checked 0x0006 0x00100005 --yes --json
+fpga-host write-checked 0x000F 1 --yes --json
+fpga-host start --scan-mode 1 --yes --json
 ```
 
 > 注意：当前 host-app 已支持 DL4 控制面和 mock frame；真实 DL2 ADC 帧接收/保存尚未接入，因此 L9 的“保存 ADC 数据”需要后续补真实数据面，或临时使用现有板卡采集工具。
@@ -399,8 +412,9 @@ ila_laser_debug (
 4. **P3：验证 DL5 关键指标**
    - 按 §5.1 L4~L8 看 `blanker/acq` 延迟、DAC_X 切换延迟、行末跟行延迟
    - 重点确认 DAC_X 切换是否满足 < 200ns
-5. **P4：跑完整帧**
-   - 跑 512×512 激光同步扫描
+5. **P4：先跑小帧**
+   - 先跑 16×16 激光同步扫描，不直接上 512×512
+   - 小帧稳定后再逐级放大到 32×32、64×64 或实际目标尺寸
    - 保存 ADC 数据，检查图像是否有撕裂、错行、坐标跳变
 
 如果上板后发现新问题，再按以下优先级处理：
@@ -409,7 +423,7 @@ ila_laser_debug (
    先回滚到 UNIT_002 或 baseline 验证硬件链路，再仿真复现问题，修 RTL，重新跑 TC1~TC13。
 2. **性能不达标**：延迟 > 200ns / 行间隔过长影响帧率  
    分析 ILA 波形定位瓶颈，再考虑 State 13 减 word 数或其他优化。
-3. **边界情况异常**：极端参数下（dax_fall=10µs / laser=1µs）异常  
+3. **边界情况异常**：小参数矩阵下（dax_fall=1~2µs / 16×16~64×64）异常
    补充 TC14 矩阵扫描，并在上位机增加参数校验。
 4. **工程优化**：Q18（0x0200 case 重复 bug）、Q11（清理 .gitignore）等。
 

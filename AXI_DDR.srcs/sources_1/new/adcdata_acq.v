@@ -28,7 +28,7 @@ module adcdata_acq(
     // ui_clk 域接口：后级从这里读取已经平均、行重复处理后的 ADC 数据。
     input               ui_clk,
     input               rstn,
-    input [15:0]        row_repeat,  
+    input [15:0]        row_repeat,
     // 采集配置和触发输入：这些信号会在下面同步到 adc_dco 域后使用。
     input               adc_tri,
     input       [31:0]  adc_sample,
@@ -37,6 +37,9 @@ module adcdata_acq(
     input               ultrafast_mode,
     input       [31:0]  acq_dead_time,
     input       [31:0]  adc_acq_delay,// 超快模式下触发后的采集延时
+    // DL5 激光模式参数
+    input               laser_mode_en,  // 1=激光模式，0=普通模式
+    input       [31:0]  acq_time,       // 激光模式 ADC 采集点数
     // ADC 真实数据输入：采集、累加、除法启动都工作在 adc_dco 域。
     input               adc_dco,
     input       [15:0]  adc_data,
@@ -72,6 +75,12 @@ reg [23:0]  adc_acq_delay_r2 = 0;
 reg [31:0]  acq_dead_time_r0 = 0;
 reg [31:0]  acq_dead_time_r1 = 0;
 reg [31:0]  acq_dead_time_r2 = 0;
+reg         laser_mode_en_r0 = 0;
+reg         laser_mode_en_r1 = 0;
+reg         laser_mode_en_r2 = 0;
+reg [31:0]  acq_time_r0      = 50;
+reg [31:0]  acq_time_r1      = 50;
+reg [31:0]  acq_time_r2      = 50;
 
 // adc_tri 和各类配置参数统一进入 adc_dco 域后再使用。
 // 这里对多 bit 配置只做寄存器打拍，不是握手式 CDC；因此这些参数应在采集未运行时保持稳定。
@@ -95,16 +104,25 @@ begin
     adc_acq_delay_r0 <= adc_acq_delay;
     adc_acq_delay_r1 <= adc_acq_delay_r0;
     adc_acq_delay_r2 <= adc_acq_delay_r1;   
-    acq_dead_time_r0 <= acq_dead_time; 
-    acq_dead_time_r1 <= acq_dead_time_r0; 
-    acq_dead_time_r2 <= acq_dead_time_r1; 
+    acq_dead_time_r0 <= acq_dead_time;
+    acq_dead_time_r1 <= acq_dead_time_r0;
+    acq_dead_time_r2 <= acq_dead_time_r1;
+    laser_mode_en_r0 <= laser_mode_en;
+    laser_mode_en_r1 <= laser_mode_en_r0;
+    laser_mode_en_r2 <= laser_mode_en_r1;
+    acq_time_r0      <= acq_time;
+    acq_time_r1      <= acq_time_r0;
+    acq_time_r2      <= acq_time_r1;
 end
 
 wire[39:0]  adc_valid_point;
 // 本次采集窗口内允许产生的原始采样点数：
-// 普通模式 = image_column * adc_sample，覆盖一整行；
-// 超快模式 = adc_sample - adc_acq_delay - acq_dead_time - 2，对触发周期中的延时和死区做扣除。
-assign adc_valid_point = ultrafast_mode_r2?(adc_sample_r2 - adc_acq_delay_r2 - acq_dead_time_r2 - 24'd2) :image_column_r2 * adc_sample_r2;
+// 激光模式 = acq_time，单像素多窗口采集；
+// 超快模式 = adc_sample - adc_acq_delay - acq_dead_time - 2，对触发周期中的延时和死区做扣除；
+// 普通模式 = image_column * adc_sample，覆盖一整行。
+assign adc_valid_point = laser_mode_en_r2   ? acq_time_r2
+                       : ultrafast_mode_r2  ? (adc_sample_r2 - adc_acq_delay_r2 - acq_dead_time_r2 - 24'd2)
+                       : image_column_r2 * adc_sample_r2;
 /* always@(posedge adc_dco or negedge rstnr)
     if(!rstnr)
         adc_valid_point <= 40'd51200;
@@ -114,10 +132,12 @@ assign adc_valid_point = ultrafast_mode_r2?(adc_sample_r2 - adc_acq_delay_r2 - a
         adc_valid_point <= image_column_r2 * adc_sample_r2; */
 
 reg [31:0]adc_interval_reg;
-// state 1 使用的等待计数。普通模式用 adc_interval，超快模式用 adc_acq_delay。
+// state 1 使用的等待计数。激光模式立即采集（0），超快模式用 adc_acq_delay，普通模式用 adc_interval。
 always@(posedge adc_dco or negedge rstnr)
     if(!rstnr)
         adc_interval_reg <= 32'd19;
+    else if(laser_mode_en_r2)
+        adc_interval_reg <= 32'd0;
     else if(ultrafast_mode_r2)
         adc_interval_reg <= adc_acq_delay_r2;
     else
@@ -181,10 +201,10 @@ begin
                     end
                     else if(ultrafast_mode_r2 == 1)begin
                         // 超快模式下，一个窗口结束后可能继续下一列；整行结束时更新 line_count。
-                        adc_valid_point_cnt <= 0; 
-                        acq_en              <= 1'b0; 
+                        adc_valid_point_cnt <= 0;
+                        acq_en              <= 1'b0;
                         if(acq_dead_time_r2 == 32'd0)
-                            if(image_column_cnt == image_column_r2) begin 
+                            if(image_column_cnt == image_column_r2) begin
                                 state               <= 4'd0;
                                 image_column_cnt    <= 16'd0;
                                 line_count          <= line_count + 1'b1;
@@ -193,13 +213,26 @@ begin
                             else
                                 state               <= 4'd1;
                         else
-                                state               <= 4'd3;                       
-                    end 
+                                state               <= 4'd3;
+                    end
+                    else if(laser_mode_en_r2 == 1)begin
+                        // 激光模式：单像素多窗口，跳过 dead time，窗口采满后根据 image_column 判断是否继续。
+                        adc_valid_point_cnt <= 0;
+                        acq_en              <= 1'b0;
+                        if(image_column_cnt == image_column_r2) begin
+                            state               <= 4'd0;
+                            image_column_cnt    <= 16'd0;
+                            line_count          <= line_count + 1'b1;
+                            line_count_en       <= 1'b1;
+                        end
+                        else
+                            state               <= 4'd1;
+                    end
                     else begin
                         // 普通模式一次触发只采一整行，窗口结束后回到等待触发。
-                        adc_valid_point_cnt <= 0; 
-                        acq_en              <= 1'b0;   
-                        state               <= 4'd0;                        
+                        adc_valid_point_cnt <= 0;
+                        acq_en              <= 1'b0;
+                        state               <= 4'd0;
                     end  
                 end
         4'd3:   begin
@@ -238,9 +271,11 @@ reg  [39:0]     adc_sum_data_r;
 reg  [39:0]     adc_sum_data;
 reg             adc_divide_en;
 wire [31:0]     adc_sample_reg;
-// 每个平均点的分母。普通模式直接用 adc_sample；超快模式扣掉延时和死区后再做平均。
+// 每个平均点的分母。激光模式用 acq_time；超快模式扣掉延时和死区；普通模式直接用 adc_sample。
 // 若超快模式参数设置不合理导致这里为 0 或下溢，后级除法器输入也会异常，配置侧需要保证合法。
-assign adc_sample_reg = ultrafast_mode_r2?(adc_sample_r2 - adc_acq_delay_r2 - acq_dead_time_r2 -  24'd2) :adc_sample_r2;
+assign adc_sample_reg = laser_mode_en_r2  ? acq_time_r2
+                      : ultrafast_mode_r2 ? (adc_sample_r2 - adc_acq_delay_r2 - acq_dead_time_r2 -  24'd2)
+                      : adc_sample_r2;
 // N 点累加平均的前级累加器：acq_en 有效时累计 adc_sample_reg 个 adc_data，
 // 累满后把总和送给除法 IP，并用 adc_divide_en 拉高一个周期作为 dividend 的 valid。
 always@(posedge adc_dco or negedge rstnr)

@@ -616,6 +616,9 @@ adcdata_config U5(
     .adc_acq_delay  (adc_acq_delay),
     .scan_state     (scan_state[0]),
     .pc_ack         (pc_ack),
+    // DL5 激光同步模式
+    .laser_mode_en  (laser_mode_en),
+    .acq_time       (acq_time),
     //ADC锟缴硷拷锟斤拷锟斤拷锟酵革拷锟斤拷锟节斤拷锟叫凤拷锟斤拷模锟斤拷
     .prog_full              (prog_full),
     .data_req               (data_req),

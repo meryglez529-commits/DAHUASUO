@@ -567,17 +567,24 @@ always@(posedge ui_clk or negedge ui_rstn)
 assign sync_pixel_tri2 = sync_pixel_tri2_reg;
 
 // ILA 调试：观察 sync2 原始输入、宽度、状态机、计数器和最终外部输出。
-ila_1 sync2_test (
+// DL5 acquisition timing ILA, ui_clk domain.
+// probe1[31:16]=acq_delay_ui, probe1[15:0]=acq_time_ui.
+// probe2={laser_mode_en_ui, acq_pulse_ui, acq_state[1:0]}.
+// probe4[31:16]=acq_delay_cnt[15:0], probe4[15:0]=acq_time_cnt[15:0].
+wire [31:0] dl5_ila_acq_cfg    = {acq_delay_ui, acq_time_ui};
+wire [3:0]  dl5_ila_acq_status = {laser_mode_en_ui, acq_pulse_ui, acq_state};
+wire [31:0] dl5_ila_acq_counts = {acq_delay_cnt[15:0], acq_time_cnt[15:0]};
+ila_1 dl5_acq_timing_test (
 	.clk(ui_clk), // input wire clk
 
 
-	.probe0(sync2_pixel_tri_r1), // input wire [0:0]  probe0
-	.probe1(sync2_pixel_tri_wigth_r), // input wire [31:0]  probe1
-	.probe2(sync2_state), // input wire [3:0]  probe2
-	.probe3(sync_pixel_tri2_reg), // input wire [0:0]  probe3
-	.probe4(sync_sig_delay2_cnt), // input wire [31:0]  probe4
-	.probe5(sync_sig_delay2), // input wire [15:0]  probe5
-	.probe6(sync_pixel_tri2) // input wire [0:0]  probe6
+	.probe0(laser_pulse_ui), // input wire [0:0]  probe0
+	.probe1(dl5_ila_acq_cfg), // input wire [31:0]  probe1
+	.probe2(dl5_ila_acq_status), // input wire [3:0]  probe2
+	.probe3(acq_pulse_ui), // input wire [0:0]  probe3
+	.probe4(dl5_ila_acq_counts), // input wire [31:0]  probe4
+	.probe5(acq_time_ui), // input wire [15:0]  probe5
+	.probe6(laser_mode_en_ui) // input wire [0:0]  probe6
 );
 
 //------------------------------------------------------------------------------
