@@ -20,7 +20,7 @@ class Dl5PlanTests(unittest.TestCase):
         self.assertEqual(
             config.to_registers(),
             [
-                (0x0205, 1),
+                (0x020B, 1),
                 (0x0206, 100),
                 (0x0207, 20),
                 (0x0208, 80),
@@ -30,9 +30,9 @@ class Dl5PlanTests(unittest.TestCase):
         )
 
     def test_safe_apply_disables_then_enables(self):
-        plan = Dl5Config(laser_mode=1).to_safe_apply_registers()
-        self.assertEqual(plan[0], (0x0205, 0))
-        self.assertEqual(plan[-1], (0x0205, 1))
+        plan = Dl5Config(laser_mode=1, acq_time=2).to_safe_apply_registers()
+        self.assertEqual(plan[0], (0x020B, 0))
+        self.assertEqual(plan[-1], (0x020B, 1))
 
 
 if __name__ == "__main__":

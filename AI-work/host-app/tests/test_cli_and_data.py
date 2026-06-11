@@ -19,7 +19,7 @@ class CliAndDataTests(unittest.TestCase):
     def test_cli_blocks_real_write_without_yes(self):
         err = io.StringIO()
         with redirect_stderr(err):
-            self.assertEqual(main(["write", "0x0205", "1"]), 20)
+            self.assertEqual(main(["write", "0x020B", "1"]), 20)
 
     def test_cli_mode_laser_dry_run(self):
         out = io.StringIO()

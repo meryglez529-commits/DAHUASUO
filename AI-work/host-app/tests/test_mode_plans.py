@@ -16,29 +16,33 @@ class ModePlanTests(unittest.TestCase):
     def test_normal_disables_extensions(self):
         plan = NormalModeConfig(scan=self.scan()).to_plan()
         writes = [(item.address, item.value, item.checked) for item in plan.items]
-        self.assertIn((0x0205, 0, True), writes)
-        self.assertIn((0x0202, 0, False), writes)
+        self.assertIn((0x020B, 0, True), writes)
+        self.assertIn((0x0202, 0, True), writes)
         self.assertEqual(plan.mode, "normal")
 
-    def test_ultrafast_uses_write_only_extension_regs(self):
+    def test_ultrafast_uses_checked_extension_regs(self):
         plan = UltrafastModeConfig(
             scan=self.scan(),
             ultrafast_line_rec=7,
-            adc_acq_delay=11,
-            acq_dead_time=13,
+            adc_acq_delay=3,
+            acq_dead_time=5,
+            sync2_width=5,
         ).to_plan()
         values = {item.address: item for item in plan.items}
         self.assertEqual(values[0x0202].value, (7 << 1) | 1)
-        self.assertFalse(values[0x0201].checked)
-        self.assertTrue(plan.warnings)
+        self.assertTrue(values[0x0201].checked)
+        self.assertEqual(values[0x0205].value, 5)
+        self.assertTrue(values[0x0205].checked)
+        self.assertFalse(plan.warnings)
 
     def test_laser_sequence_closes_then_enables(self):
         plan = LaserModeConfig(
             scan=self.scan(),
             dl5=Dl5Config(laser_mode=1, scan_delay=100, blanker_delay=20, blanker_time=80, acq_delay=30, acq_time=60),
         ).to_plan()
-        laser_writes = [item.value for item in plan.items if item.address == 0x0205]
+        laser_writes = [item.value for item in plan.items if item.address == 0x020B]
         self.assertEqual(laser_writes, [0, 1])
+        self.assertTrue(all(item.checked for item in plan.items if item.address == 0x020B))
         self.assertIn(0x020A, {item.address for item in plan.items})
 
 

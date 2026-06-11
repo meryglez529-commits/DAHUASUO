@@ -23,11 +23,30 @@ class ScanPlanTests(unittest.TestCase):
         )
         self.assertEqual(plan[0x0004], 0x04000400)
         self.assertEqual(plan[0x0002], 20)
+        self.assertEqual(plan[0x0003], 0x00000FAA)
+        self.assertEqual(plan[0x0008], 0)
+        self.assertEqual(plan[0x0013], 1)
+        self.assertEqual(plan[0x0014], 1)
         self.assertEqual(plan[0x0009], (19 << 8) | (1 << 4))
 
     def test_sample_must_match(self):
         with self.assertRaises(ConfigError):
             ScanConfig(adc_sample=20, dac_sample=21).to_registers()
+
+    def test_units_are_raw_hardware_steps(self):
+        plan = dict(
+            ScanConfig(
+                dacx_recovery_time=50,
+                dax_fall_time=20,
+                frame_waiting_time=7,
+                row_repeat=2,
+                row_n=1,
+            ).to_registers()
+        )
+        self.assertEqual(plan[0x0006] & 0xFFFF, 50)
+        self.assertEqual(plan[0x000F], 20)
+        self.assertEqual(plan[0x0008], 7)
+        self.assertEqual(plan[0x0013], 2)
 
 
 if __name__ == "__main__":

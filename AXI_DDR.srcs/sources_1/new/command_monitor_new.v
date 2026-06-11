@@ -332,9 +332,7 @@ begin
                             row_m               <= wr_reg_data[31:16];
                             row_n               <= (wr_reg_data[15:0]==0)? 16'd1 : wr_reg_data[15:0];
                       end
-            // 0x0200~0x0204: ultrafast/sync 扩展参数。
-            // 注意：本 case 里 0x0200 出现了两次。Verilog case 命中第一个匹配项后就结束，
-            // 因此后面的 sync2_pixel_tri_wigth 分支通常不可达。这里先按原代码保留，只把风险标出来。
+            // 0x0200~0x0205: ultrafast/sync 扩展参数。
             16'h0200:begin
                             sync1_pixel_tri_wigth <= wr_reg_data[15:0];
                       end
@@ -352,8 +350,8 @@ begin
             16'h0204: begin
                             acq_dead_time      <= wr_reg_data[31:0];
                       end
-            // DL5 激光同步模式寄存器（地址 0x0205~0x020A）
-            16'h0205: begin
+            // DL5 激光同步模式寄存器。
+            16'h020B: begin
                             laser_mode_en           <= wr_reg_data[0];
                       end
             16'h0206: begin
@@ -371,8 +369,7 @@ begin
             16'h020A: begin
                             acq_time                <= wr_reg_data[15:0];
                       end
-            // 风险点：与上面的 0x0200 重复。若协议需要独立配置 sync2 宽度，应和上位机协议核对地址。
-            16'h0200:begin
+            16'h0205:begin
                             sync2_pixel_tri_wigth <= wr_reg_data[15:0];
                       end
             default:  begin
@@ -430,13 +427,20 @@ begin
         16'h0012: begin rd_reg_data <= offset_dacx_dacy; end
         16'h0013: begin rd_reg_data <= {16'd0,row_repeat}; end
         16'h0014: begin rd_reg_data <= {row_m,row_n}; end
+        // ultrafast/sync 扩展寄存器读回
+        16'h0200: begin rd_reg_data <= {16'd0, sync1_pixel_tri_wigth}; end
+        16'h0201: begin rd_reg_data <= adc_acq_delay; end
+        16'h0202: begin rd_reg_data <= {ultrafast_line_rec[30:0], ultrafast_mode}; end
+        16'h0203: begin rd_reg_data <= {sync_sig_delay1, sync_sig_delay2}; end
+        16'h0204: begin rd_reg_data <= acq_dead_time; end
+        16'h0205: begin rd_reg_data <= {16'd0, sync2_pixel_tri_wigth}; end
         // DL5 激光同步模式寄存器读回
-        16'h0205: begin rd_reg_data <= {31'd0, laser_mode_en}; end
         16'h0206: begin rd_reg_data <= {16'd0, scan_delay_time}; end
         16'h0207: begin rd_reg_data <= {16'd0, blanker_delay_time}; end
         16'h0208: begin rd_reg_data <= {16'd0, blanker_time}; end
         16'h0209: begin rd_reg_data <= {16'd0, acq_data_delay_time}; end
         16'h020A: begin rd_reg_data <= {16'd0, acq_time}; end
+        16'h020B: begin rd_reg_data <= {31'd0, laser_mode_en}; end
         default:  begin rd_reg_data <= 32'h11223344; end
         endcase
     else

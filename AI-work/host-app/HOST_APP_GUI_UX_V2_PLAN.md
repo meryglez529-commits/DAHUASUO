@@ -120,8 +120,8 @@ ultrafast_mode = 0
 | ADC 间隔 | 同普通模式 |
 | 超快模式开关 | `0x0202[0] = ultrafast_mode` |
 | 超快行记录/行参数 | `0x0202[31:1] = ultrafast_line_rec` 的写入值来源 |
-| 采集延时 | `0x0201 = adc_acq_delay`，当前不可读回 |
-| 采集死区 | `0x0204 = acq_dead_time`，当前不可读回 |
+| 采集延时 | `0x0201 = adc_acq_delay`，支持读回确认 |
+| 采集死区 | `0x0204 = acq_dead_time`，支持读回确认 |
 | sync/触发延时 | `0x0203` 等扩展参数，可放高级折叠区 |
 
 超快模式应用流程：
@@ -133,21 +133,21 @@ laser_mode_en = 0
 写 ultrafast 扩展参数
 写 0x0202 打开 ultrafast_mode
 对可读寄存器读回
-对 0x0200~0x0204 标记“已发送，硬件不可读回确认”
+对 0x0200~0x0205 执行写后读回确认
 等待用户 Start Scan
 ```
 
 重要 UI 提醒：
 
 ```text
-超快扩展寄存器 0x0200~0x0204 当前硬件不可读回，软件只能确认 UDP 已发送，不能确认硬件影子寄存器值。
+超快扩展寄存器 0x0200~0x0205 已补 RTL 读回，软件可通过 write_checked 确认硬件影子寄存器值。
 ```
 
 界面文案建议：
 
 ```text
 超快扫描
-适合 ultrafast 分支联调。部分扩展参数当前不可读回，应用后请结合 ILA/采集结果确认。
+适合 ultrafast 分支联调。扩展参数可读回确认，波形效果仍建议结合 ILA/采集结果确认。
 ```
 
 ### 4.3 激光同步扫描
@@ -161,7 +161,7 @@ laser_mode_en = 0
 | 图像行数/列数 | 同普通模式 |
 | 每点采样/停留点数 | 同普通模式，仍影响每个像素写 FIFO 的长度/采样窗口配合 |
 | ADC 通道 | 同普通模式 |
-| Laser 模式 | `0x0205[0] = laser_mode_en` |
+| Laser 模式 | `0x020B[0] = laser_mode_en` |
 | Scan Delay | `0x0206 = scan_delay_time` |
 | Blanker Delay | `0x0207 = blanker_delay_time` |
 | Blanker Time | `0x0208 = blanker_time` |
@@ -172,11 +172,11 @@ laser_mode_en = 0
 
 ```text
 Stop Scan
-写 0x0205 = 0，先关闭 laser mode
+写 0x020B = 0，先关闭 laser mode（checked）
 写普通扫描基础参数
 写 0x0206~0x020A 激光时序参数
-写 0x0205 = 1，打开 laser mode
-读回 0x0205~0x020A
+写 0x020B = 1，打开 laser mode（checked）
+读回 0x0206~0x020B
 等待用户 Start Scan
 ```
 
@@ -185,10 +185,10 @@ Stop Scan
 | 防呆项 | 建议 |
 |---|---|
 | 模式切换 | 必须先 stop，不能 running 时切普通/超快/激光 |
-| laser mode 打开顺序 | 必须先写时序参数，再打开 `0x0205` |
+| laser mode 打开顺序 | 必须先写时序参数，再打开 `0x020B` |
 | 参数单位 | UI 显示“步进值”和“估算时间”两列，避免用户只看到裸数字 |
 | acq/blanker 宽度 | 允许输入 0，但提示 0 表示关闭该窗口 |
-| readback | `0x0205~0x020A` 必须全部读回一致，否则应用失败 |
+| readback | `0x0206~0x020B` 必须读回一致 |
 
 界面文案建议：
 
@@ -307,7 +307,7 @@ fpga-host write/read ...
 | V2-P0 | 增加 `core/control/modes.py`，定义普通/超快/激光三个模式配置和写入计划 | 三种模式 dry-run 能生成正确计划 |
 | V2-P1 | 改 GUI 主窗口布局：顶部状态栏 + 左侧模式选择 + 中间参数页 + 右侧运行控制 | GUI 默认不再显示寄存器地址 |
 | V2-P2 | 实现普通模式页 | mock 下可 Apply/Start/Stop |
-| V2-P3 | 实现超快模式页 | 可写 `0x0201~0x0204`，并显示不可读回风险 |
+| V2-P3 | 实现超快模式页 | 可写并读回 `0x0200~0x0205` |
 | V2-P4 | 实现激光模式页 | 自动 stop -> close laser -> write params -> enable laser -> readback |
 | V2-P5 | 移动寄存器控制台到高级调试 | 主流程不需要手填地址 |
 | V2-P6 | CLI 补 `mode normal/ultrafast/laser` | GUI/CLI 写入计划一致 |
@@ -319,7 +319,7 @@ fpga-host write/read ...
 |---|---|
 | 普通模式 `scan_mode` 默认值 | 先用当前硬件默认/已知可用值 `1`，实板验证后固化 |
 | 超快模式用户需要哪些参数 | 先暴露 `ultrafast_line_rec`、`adc_acq_delay`、`acq_dead_time`，其它放高级 |
-| 超快寄存器不可读回 | UI 明确提示“已发送但不可硬件读回确认” |
+| 超快寄存器读回 | UI 显示 write_checked 结果，失败时提示 readback mismatch |
 | 激光参数单位 | UI 同时显示寄存器步进值和换算后的时间；具体换算以 DL5 最新实现为准 |
 | 是否保留 raw register tab | 保留，但放高级调试，不作为主流程 |
 
@@ -347,7 +347,7 @@ fpga-host write/read ...
 | V2-P0 | 已实现 | `core/control/modes.py` 已定义普通、超快、激光三种模式配置和写入计划 |
 | V2-P1 | 已实现 | 主窗口改为顶部连接栏 + 模式控制页 + 高级调试页 + 底部日志 |
 | V2-P2 | 已实现 | 普通扫描页可配置扫描参数、预览计划、应用参数、start/stop |
-| V2-P3 | 已实现 | 超快扫描页暴露行记录、采集延时、采集死区、sync 参数，并标记不可读回项 |
+| V2-P3 | 已实现 | 超快扫描页暴露行记录、采集延时、采集死区、sync 参数，并支持读回确认 |
 | V2-P4 | 已实现 | 激光同步页按 stop -> close laser -> write timing -> enable laser 的计划执行 |
 | V2-P5 | 已实现 | raw register console 已移到“高级调试”，默认主流程不要求用户输入寄存器地址 |
 | V2-P6 | 已实现 | CLI 已补 `mode normal/ultrafast/laser apply`，与 GUI 共用 core 模式配置 |

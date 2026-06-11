@@ -21,14 +21,14 @@
 ## 已验证的本地证据
 
 - `D:\fpga_host_venv\Scripts\python.exe -m unittest discover -s tests`：21 tests PASS。
-- `mode normal apply --mock --dry-run --json`：可生成普通模式写入计划，关闭 `0x0205` 激光模式。
-- `mode laser apply --mock --dry-run --json`：可生成激光模式写入计划，按 `0x0206~0x020A` 写时序，最后写 `0x0205=1`。
-- `dump --range dl5 --mock --json`：DL5 读回范围为 `0x0205~0x020A`。
+- `mode normal apply --mock --dry-run --json`：可生成普通模式写入计划，关闭 `0x020B` 激光模式，并支持读回确认。
+- `mode laser apply --mock --dry-run --json`：可生成激光模式写入计划，按 `0x0206~0x020A` 写时序，最后写 `0x020B=1`，并支持读回确认。
+- `dump --range dl5 --mock --json`：DL5 读回范围为 `0x0206~0x020B`。
 - `data mock-frame --mock --json`：只生成 mock DL2 帧，不是真实板卡 ADC 数据。
 
 ## 上板实测状态（2026-06-03，修复扫描几何 bug 后）
 
-- **L0~L3 上板通过**：ping/version 通，寄存器读写正常，普通模式 DAC 出波形，激光模式 `0x0205=1` 读回正常。
+- **L0~L3 历史上板通过**：ping/version 通，寄存器读写正常，普通模式 DAC 出波形；当时激光模式证据基于旧 `0x0205=laser_mode_en` 读回。当前 host-app 已按现行 RTL 写表迁移到 `0x020B=laser_mode_en`，该点如需闭环需重新上板确认。
 - **L4~L7 上板通过**：真实 D15 laser（500kHz/20%）驱动下，ILA 实测 `laser_sync_in` 翻转、`laser_toggle` 翻转、状态机 14→15→16→4 循环；示波器 TRIG_BLANK 有输出；延迟指标与仿真吻合（见 `DL5_UNIT_003/IMPLEMENTATION.md §7b`）。
 - **L8 上板通过**：dax_fall=5µs（最坏 case）跨行延迟实测 20ns。
 - **L9 待补**：真实 DL2 ADC 帧接收/保存仍未实现。
@@ -40,7 +40,7 @@
 | L0 基本连通 | 部分支持 | GUI 连接栏可做 UDP 版本读取和 `0x0009` 网络诊断；CLI 可 `version` | ICMP ping 用系统命令 `Test-Connection` / `ping` |
 | L1 寄存器读写 | 支持 | `version` 读 `0x000A`；`read` / `write` / `write-checked`；GUI raw register console | 注意版本寄存器是 `0x000A`，不是 `0x0000` |
 | L2 普通模式不受影响 | ✅ 上板通过 | `mode normal apply --start-after` 关闭激光/超快并启动普通扫描；**已补全扫描几何寄存器 `0x0005/0x0006/0x0007/0x000F`**，DAC 出波形 | “采集一帧 ADC 数据正常”需要真实 DL2 数据面或外部采集工具 |
-| L3 激光模式基础 | ✅ 上板通过 | `write-checked 0x0205 1` 或 `mode laser apply` 可写后读回 | 无 |
+| L3 激光模式基础 | ⚠️ 需按新地址复测 | 当前 host-app 使用 `0x020B` checked write；旧 `0x0205` 读回证据不再代表当前协议 | RTL 已补 `0x020B` 读回，仍需上板复测 |
 | L4 激光输入信号 | ✅ 上板通过 | host-app 配激光模式并启动；真实 D15 laser 经 ILA 确认 `laser_sync_in` 翻转 | `laser_sync_in` 翻转最终判据靠 ILA/示波器 |
 | L5 blanker/acq 输出 | ✅ 上板通过 | host-app 配 `0x0207/0x0208/0x0209/0x020A`；示波器实测 TRIG_BLANK 输出、blanker 脉宽 500ns | 延迟/脉宽精测用示波器/ILA |
 | L6 DAC 坐标切换 | ✅ 上板通过 | host-app 配 DL5 并启动；ILA 实测 laser→DAX ~256ns（仿真 274ns） | — |

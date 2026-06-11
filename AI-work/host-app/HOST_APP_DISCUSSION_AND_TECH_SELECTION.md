@@ -124,8 +124,8 @@ DL4 写命令没有 ACK。因此上位机必须自己定义确认策略：
 | 可读回寄存器 | 写后读同地址，比对值 |
 | 不可读回寄存器 | 记录为“已发送，未闭环确认” |
 | 启停扫描 | 写 `0x0009` 后读回 `0x0009` |
-| DL5 参数 | `0x0205~0x020A` 都可读回，建议全部 `write_checked` |
-| `0x0200~0x0204` | 当前不可读回，UI 中要标注风险 |
+| DL5 timing 参数 | `0x0206~0x020A` 可读回，建议 `write_checked` |
+| laser enable / sync 扩展 | `0x020B` laser enable 和 `0x0200~0x0205` sync/ultrafast 已补读回，建议全部 `write_checked` |
 
 ## 4. 技术选型要看哪些维度
 
@@ -453,7 +453,7 @@ fpga-host ping
 fpga-host version
 fpga-host read 0x000A
 fpga-host write 0x0009 0x00000000
-fpga-host write-checked 0x0205 0x00000001
+fpga-host write 0x020B 0x00000001
 fpga-host stop
 fpga-host start
 fpga-host scan apply --rows 1024 --cols 1024 --adc-sample 20 --dac-sample 20 --mode 0
@@ -529,7 +529,7 @@ GUI/CLI -> core -> MockDevice/MockTransport -> 内存里的虚拟寄存器表
 | 版本号 `0x000A` | 固定返回 `0x000300AC`，用于测试连接流程 |
 | 普通可读写寄存器 | 写入后存在内存字典里，读回同样的值 |
 | start/stop `0x0009` | 记录 scan 状态，GUI 可以显示 running/stopped |
-| DL5 `0x0205~0x020A` | 支持写入、读回、参数范围检查 |
+| DL5 `0x0206~0x020B` | 支持写入、读回、参数范围检查 |
 | 不可读寄存器 | 按寄存器表返回“不可读”或只记录已发送 |
 | 网络异常 | 可选模拟 timeout、丢包、读回不匹配 |
 

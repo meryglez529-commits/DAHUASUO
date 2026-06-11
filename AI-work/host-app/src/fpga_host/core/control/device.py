@@ -7,6 +7,7 @@ import time
 from fpga_host.core.control.dl5 import Dl5Config
 from fpga_host.core.control.modes import ModeApplyPlan, ModeConfig, WritePlanItem
 from fpga_host.core.control.register_client import RegisterClient
+from fpga_host.core.control.register_map import get_register
 from fpga_host.core.control.scan import ScanConfig
 from fpga_host.core.models import OperationResult, hex16, hex32
 
@@ -116,7 +117,7 @@ class FpgaDevice:
                 data={"plan": _plan_to_dict(plan)},
             )
         start = time.perf_counter()
-        results = [self.client.write_checked(addr, value).to_dict() for addr, value in plan]
+        results = [self._write_with_available_check(addr, value).to_dict() for addr, value in plan]
         success = all(item["success"] for item in results)
         return OperationResult(
             success=success,
@@ -148,7 +149,7 @@ class FpgaDevice:
                 data={"plan": _plan_to_dict(plan)},
             )
         start = time.perf_counter()
-        results = [self.client.write_checked(addr, value).to_dict() for addr, value in plan]
+        results = [self._write_with_available_check(addr, value).to_dict() for addr, value in plan]
         success = all(item["success"] for item in results)
         return OperationResult(
             success=success,
@@ -157,6 +158,12 @@ class FpgaDevice:
             elapsed_ms=(time.perf_counter() - start) * 1000.0,
             data={"results": results},
         )
+
+    def _write_with_available_check(self, address: int, value: int) -> OperationResult:
+        spec = get_register(address)
+        if spec.readable:
+            return self.client.write_checked(address, value)
+        return self.client.write32(address, value)
 
     def apply_mode_config(
         self,

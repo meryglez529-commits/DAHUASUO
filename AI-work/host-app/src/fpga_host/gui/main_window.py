@@ -12,13 +12,13 @@ from fpga_host.gui.panels.connection_panel import ConnectionPanel
 from fpga_host.gui.panels.log_panel import LogPanel
 from fpga_host.gui.panels.mode_workbench_panel import ModeWorkbenchPanel
 from fpga_host.gui.panels.register_panel import RegisterPanel
-from fpga_host.gui.qt_compat import QT_API, QtCore, QtWidgets
+from fpga_host.gui.qt_compat import QtWidgets
 
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(f"FPGA Host Console ({QT_API})")
+        self.setWindowTitle("FPGA Host Console")
         self.setMinimumSize(1120, 720)
         self.config = ConnectionConfig(mock=True)
         self.device = self._make_device()
@@ -43,16 +43,11 @@ class MainWindow(QtWidgets.QMainWindow):
         tabs.addTab(self.mode_panel, "模式控制")
         tabs.addTab(advanced_panel, "高级调试")
 
-        splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
-        splitter.addWidget(tabs)
-        splitter.addWidget(self.log_panel)
-        splitter.setStretchFactor(0, 4)
-        splitter.setStretchFactor(1, 1)
-
         root_layout.addWidget(self.connection_bar)
-        root_layout.addWidget(splitter, 1)
+        root_layout.addWidget(tabs, 1)
+        root_layout.addWidget(self.log_panel, 0)
         self.setCentralWidget(root)
-        self.statusBar().showMessage("mock mode")
+        self.statusBar().showMessage("mock transport")
 
     def _make_device(self) -> FpgaDevice:
         transport = MockTransport() if self.config.mock else UdpTransport(self.config)
@@ -65,9 +60,11 @@ class MainWindow(QtWidgets.QMainWindow):
             self.connection_bar.set_config(config)
         if hasattr(self, "mode_panel"):
             self.mode_panel.on_connection_updated()
-        mode = "mock" if config.mock else f"real {config.fpga_ip}:{config.remote_port}"
-        self.statusBar().showMessage(mode)
-        self.log(f"connection updated: {mode}")
+        host = "auto(0.0.0.0)" if config.host_ip == "0.0.0.0" else config.host_ip
+        mode = "mock" if config.mock else "real"
+        summary = f"{mode} host={host}:{config.local_port} fpga={config.fpga_ip}:{config.remote_port}"
+        self.statusBar().showMessage(summary)
+        self.log(f"connection updated: {summary}")
 
     def log(self, message: str) -> None:
         self.log_panel.append(message)

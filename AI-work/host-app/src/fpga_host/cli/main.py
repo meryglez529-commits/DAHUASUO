@@ -22,6 +22,7 @@ from fpga_host.core.control.device import FpgaDevice
 from fpga_host.core.control.dl5 import Dl5Config
 from fpga_host.core.control.modes import LaserModeConfig, NormalModeConfig, UltrafastModeConfig
 from fpga_host.core.control.register_client import RegisterClient
+from fpga_host.core.control.register_map import DUMP_RANGES
 from fpga_host.core.control.scan import ScanConfig
 from fpga_host.core.data.dl2_receiver_stub import MockDl2Receiver
 from fpga_host.core.errors import HostAppError, UnsafeOperationError
@@ -88,23 +89,41 @@ def add_dry_run(parser: argparse.ArgumentParser) -> None:
 
 
 def add_scan_options(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--rows", type=int, default=1024)
-    parser.add_argument("--cols", type=int, default=1024)
-    parser.add_argument("--adc-sample", type=int, default=20)
-    parser.add_argument("--dac-sample", type=int, default=20)
-    parser.add_argument("--adc-channel", type=int, default=4)
-    parser.add_argument("--adc-len-single", type=int)
-    parser.add_argument("--adc-interval", type=int, default=0)
-    parser.add_argument("--scan-mode", type=int, default=1)
+    parser.add_argument("--rows", type=parse_int, default=1024)
+    parser.add_argument("--cols", type=parse_int, default=1024)
+    parser.add_argument("--adc-sample", type=parse_int, default=20, help="ADC average count, raw sample points")
+    parser.add_argument("--dac-sample", type=parse_int, default=20, help="DAC pixel dwell count, raw FIFO words")
+    parser.add_argument("--adc-channel", type=parse_int, default=4)
+    parser.add_argument("--adc-len-single", type=parse_int)
+    parser.add_argument("--adc-interval", type=parse_int, default=0, help="ADC DCO cycles, about 20 ns/step at 50 MHz")
+    parser.add_argument("--scan-mode", type=parse_int, default=1)
+    parser.add_argument("--clk-sel", type=parse_int, choices=[0, 1], help="0=free run, 1=wait TRIGGER_IN before each line")
+    parser.add_argument("--dacx-start", type=parse_int, default=0x1999, help="DAC X start code")
+    parser.add_argument("--dacx-end", type=parse_int, default=0xE665, help="DAC X end code")
+    parser.add_argument("--dacx-tk-point", type=parse_int, help="X points per line; omitted means follow --cols")
+    parser.add_argument("--dacx-recovery-us", type=parse_int, default=50, help="line-head recovery in us; FPGA multiplies by 50")
+    parser.add_argument("--dacy-start", type=parse_int, default=0x3BBB, help="DAC Y start code")
+    parser.add_argument("--dacy-end", type=parse_int, default=0xC443, help="DAC Y end code")
+    parser.add_argument("--dax-fall-us", type=parse_int, default=20, help="X fall time in us; FPGA multiplies by 50")
+    parser.add_argument("--frame-wait-words", type=parse_int, default=0, help="Frame wait FIFO words, about 20 ns/word")
+    parser.add_argument("--adc1-gain", type=parse_int, choices=range(4), default=2)
+    parser.add_argument("--adc2-gain", type=parse_int, choices=range(4), default=2)
+    parser.add_argument("--adc3-gain", type=parse_int, choices=range(4), default=2)
+    parser.add_argument("--adc4-gain", type=parse_int, choices=range(4), default=2)
+    parser.add_argument("--dacx-gain", type=parse_int, choices=range(4), default=3)
+    parser.add_argument("--dacy-gain", type=parse_int, choices=range(4), default=3)
+    parser.add_argument("--row-repeat", type=parse_int, default=1, help="Repeated scans per row; must be >=1")
+    parser.add_argument("--row-m", type=parse_int, default=0, help="Interleaved scan skipped-row group m")
+    parser.add_argument("--row-n", type=parse_int, default=1, help="Interleaved scan active-row group n; must be >=1")
 
 
 def add_dl5_options(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--laser-mode", type=int, choices=[0, 1], default=1)
-    parser.add_argument("--scan-delay", type=int, required=True)
-    parser.add_argument("--blanker-delay", type=int, required=True)
-    parser.add_argument("--blanker-time", type=int, required=True)
-    parser.add_argument("--acq-delay", type=int, required=True)
-    parser.add_argument("--acq-time", type=int, required=True)
+    parser.add_argument("--laser-mode", type=parse_int, choices=[0, 1], default=1)
+    parser.add_argument("--scan-delay", type=parse_int, required=True, help="eth_clk cycles, 8 ns/step")
+    parser.add_argument("--blanker-delay", type=parse_int, required=True, help="ui_clk cycles, 5 ns/step")
+    parser.add_argument("--blanker-time", type=parse_int, required=True, help="ui_clk cycles, 5 ns/step")
+    parser.add_argument("--acq-delay", type=parse_int, required=True, help="20 ns steps; FPGA shifts left by 2 to ui_clk")
+    parser.add_argument("--acq-time", type=parse_int, required=True, help="ADC sample count / 20 ns steps; >=2 when laser is enabled")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -136,7 +155,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     dump = sub.add_parser("dump", help="Dump readable register range")
     add_common_options(dump)
-    dump.add_argument("--range", choices=["basic", "dl5", "all"], default="basic")
+    dump.add_argument("--range", choices=sorted(DUMP_RANGES), default="basic")
     dump.set_defaults(handler=cmd_dump)
 
     start = sub.add_parser("start", help="Start scan")
@@ -204,12 +223,13 @@ def build_parser() -> argparse.ArgumentParser:
     add_yes(ultrafast_apply)
     add_dry_run(ultrafast_apply)
     add_scan_options(ultrafast_apply)
-    ultrafast_apply.add_argument("--ultrafast-line-rec", type=int, default=0)
-    ultrafast_apply.add_argument("--adc-acq-delay", type=int, default=0)
-    ultrafast_apply.add_argument("--acq-dead-time", type=int, default=0)
-    ultrafast_apply.add_argument("--sync-delay1", type=int, default=0)
-    ultrafast_apply.add_argument("--sync-delay2", type=int, default=0)
-    ultrafast_apply.add_argument("--sync1-width", type=int, default=0)
+    ultrafast_apply.add_argument("--ultrafast-line-rec", type=parse_int, default=0, help="line recovery in us; FPGA multiplies by 50")
+    ultrafast_apply.add_argument("--adc-acq-delay", type=parse_int, default=0, help="ADC DCO cycles, about 20 ns/step")
+    ultrafast_apply.add_argument("--acq-dead-time", type=parse_int, default=0, help="ADC DCO cycles, about 20 ns/step")
+    ultrafast_apply.add_argument("--sync-delay1", type=parse_int, default=0, help="ui_clk cycles, 5 ns/step")
+    ultrafast_apply.add_argument("--sync-delay2", type=parse_int, default=0, help="ui_clk cycles, 5 ns/step")
+    ultrafast_apply.add_argument("--sync1-width", type=parse_int, default=0, help="20 ns steps; FPGA shifts left by 2 to ui_clk")
+    ultrafast_apply.add_argument("--sync2-width", type=parse_int, default=0, help="20 ns steps; FPGA shifts left by 2 to ui_clk")
     ultrafast_apply.add_argument("--start-after", action="store_true")
     ultrafast_apply.set_defaults(handler=cmd_mode_ultrafast_apply, requires_yes=True)
 
@@ -260,6 +280,7 @@ def cmd_mode_ultrafast_apply(device: FpgaDevice, args):
         sync_delay1=args.sync_delay1,
         sync_delay2=args.sync_delay2,
         sync1_width=args.sync1_width,
+        sync2_width=args.sync2_width,
     )
     return device.apply_mode_config(config, start_after_apply=args.start_after, dry_run=args.dry_run)
 

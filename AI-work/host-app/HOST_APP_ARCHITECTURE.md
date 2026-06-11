@@ -16,7 +16,7 @@
 | 寄存器控制台 | 支持任意地址 `read32`、`write32`、`write_checked` |
 | 参数配置 | 把 row、column、sample、channel、scan mode 等参数从人可读表单转换成寄存器写入 |
 | start/stop scan | 对扫描启停做明确按钮和 CLI 命令 |
-| DL5 参数配置 | 配置 `0x0205~0x020A`，支持写后读回 |
+| DL5 参数配置 | 配置 `0x0206~0x020A` timing 和 `0x020B` laser enable，支持写后读回 |
 | CLI | 给 AI 和脚本使用，支持 JSON 输出、dry-run、mock |
 | mock 模式 | 无 FPGA 板卡时也能开发 GUI/CLI 和跑自动测试 |
 | DL2 预留 | 第一版不接 ADC 数据，但代码结构要支持后续快速接入 DL2 数据平面 |
@@ -222,7 +222,7 @@ mock transport：
 | 固定版本号 | `0x000A` 默认返回 `0x000300AC` |
 | 可读写属性 | 根据 `register_map.py` 判断不可读/不可写 |
 | scan 状态 | `0x0009` 写入后更新 running/stopped 状态 |
-| DL5 寄存器 | `0x0205~0x020A` 支持写入和读回 |
+| DL5 寄存器 | `0x0206~0x020B` 支持写入和读回 |
 | 故障注入 | 可模拟 timeout、丢包、读回 mismatch |
 
 ## 7. Register Client
@@ -243,8 +243,9 @@ dump(registers) -> list[RegisterValue]
 1. 写命令没有 ACK，不可把 UDP send 成功当成 FPGA 已配置成功。
 2. 可读寄存器默认使用 `write_checked`。
 3. 不可读寄存器写入后只能记录“已发送，未闭环确认”。
-4. `0x0205~0x020A` DL5 寄存器应该全部走 `write_checked`。
-5. `0x0200~0x0204` 当前不可读，GUI/CLI 要标注风险。
+4. `0x0206~0x020A` DL5 timing 寄存器走 `write_checked`。
+5. `0x0200~0x0205` sync/ultrafast 已补读回，可走 `write_checked`。
+6. `0x020B` laser enable 已补读回，可走 `write_checked`。
 
 ## 8. 高层 Device API
 
@@ -266,12 +267,13 @@ DL5 推荐流程：
 
 ```text
 stop_scan
-write_checked 0x0205 laser_mode_en
+write_checked 0x020B laser_mode_en = 0
 write_checked 0x0206 scan_delay_time
 write_checked 0x0207 blanker_delay_time
 write_checked 0x0208 blanker_time
 write_checked 0x0209 acq_data_delay_time
 write_checked 0x020A acq_time
+write_checked 0x020B laser_mode_en = 1
 optional start_scan
 ```
 
@@ -442,7 +444,7 @@ DL2 很快要接，所以第一版必须预留数据平面，但不实现完整�
 | `test_register_map.py` | 地址表读写属性正确 |
 | `test_register_client_mock.py` | mock 下 read/write/write_checked 行为正确 |
 | `test_scan_plan.py` | 扫描参数生成的寄存器写入计划正确 |
-| `test_dl5_plan.py` | DL5 生成 `0x0205~0x020A` 写入计划，支持 dry-run |
+| `test_dl5_plan.py` | DL5 生成 `0x0206~0x020A/0x020B` 写入计划，支持 dry-run |
 
 建议先用 `pytest`，如果想减少依赖，也可以先用 Python 标准库 `unittest`。由于后续 GUI 和协议都会变，`pytest` 的开发体验更好。
 
@@ -492,7 +494,7 @@ $env:PYTHONPATH='src'
 python -m unittest discover -s tests
 python -m fpga_host.cli.main --help
 python -m fpga_host.cli.main version --mock --json
-python -m fpga_host.cli.main write-checked 0x0205 1 --mock --json
+python -m fpga_host.cli.main write-checked 0x020B 1 --mock --yes --json
 python -m fpga_host.cli.main dl5 apply --mock --laser-mode 1 --scan-delay 100 --blanker-delay 20 --blanker-time 80 --acq-delay 30 --acq-time 60 --dry-run --json
 python -m fpga_host.cli.main profile load configs/profiles/dl5_test.json --mock --dry-run --json
 python -m fpga_host.cli.main data mock-frame --rows 4 --cols 4 --channels 2 --json
