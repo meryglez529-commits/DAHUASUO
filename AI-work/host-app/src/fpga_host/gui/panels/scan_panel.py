@@ -41,6 +41,8 @@ class ScanPanel(QtWidgets.QWidget):
         box = QtWidgets.QSpinBox()
         box.setRange(minimum, min(maximum, 2147483647))
         box.setValue(value)
+        buttons = getattr(QtWidgets.QAbstractSpinBox, "ButtonSymbols", QtWidgets.QAbstractSpinBox)
+        box.setButtonSymbols(buttons.NoButtons)
         return box
 
     def _config(self) -> ScanConfig:

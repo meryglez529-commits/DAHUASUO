@@ -47,6 +47,7 @@ class MainWindow(QtWidgets.QMainWindow):
         root_layout.addWidget(tabs, 1)
         root_layout.addWidget(self.log_panel, 0)
         self.setCentralWidget(root)
+        self.log_panel.clear_btn.clicked.connect(lambda: self.statusBar().clearMessage())
         self.statusBar().showMessage("mock transport")
 
     def _make_device(self) -> FpgaDevice:

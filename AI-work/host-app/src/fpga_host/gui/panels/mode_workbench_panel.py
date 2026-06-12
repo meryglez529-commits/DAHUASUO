@@ -15,6 +15,14 @@ MODE_LABELS = {
     "laser": "激光同步",
 }
 
+# ADC mapping combines ETH_TOP.v relay logic with sem-scsg2450-afea-v10 AFEA schematic:
+# relay state RL1/RL2 00=+/-5V, 01=+/-2.5V, 1x=+/-1.25V.
+ADC_GAIN_LABELS = ("+/-1.25 V", "+/-2.5 V", "+/-5 V", "+/-2.5 V (same)")
+DAC_GAIN_LABELS = ("1.25 V", "2.5 V", "5 V", "10 V")
+
+ADC_GAIN_TOOLTIP = "code->relay->range: 0->10->+/-1.25V, 1->01->+/-2.5V, 2->00->+/-5V, 3->01->+/-2.5V"
+DAC_GAIN_TOOLTIP = "RTL: AOUTx_CON selects 1.25/2.5V vs 5/10V group; AD9747 gain bit selects 12.5/25mA"
+
 
 class CollapsibleSection(QtWidgets.QWidget):
     def __init__(self, title: str, content: QtWidgets.QWidget, expanded: bool = False):
@@ -74,7 +82,7 @@ class ModeWorkbenchPanel(QtWidgets.QWidget):
         root.addWidget(self._build_parameter_area(), 1)
         root.addWidget(self._build_plan_section(), 0)
 
-        self._set_mode("normal", update_selector=True)
+        self._set_mode("laser", update_selector=True)
         self.preview_plan(log_message=False)
         self.refresh_scan_status(log_failures=False)
         self._refresh_start_guard()
@@ -103,6 +111,9 @@ class ModeWorkbenchPanel(QtWidgets.QWidget):
         self.refresh_btn = QtWidgets.QPushButton("刷新状态")
         self.start_btn = QtWidgets.QPushButton("开始扫描")
         self.stop_btn = QtWidgets.QPushButton("停止扫描")
+        self.apply_btn.setObjectName("ApplyButton")
+        self.start_btn.setObjectName("StartButton")
+        self.stop_btn.setObjectName("StopButton")
         self.apply_btn.setMinimumWidth(92)
         self.start_btn.setMinimumWidth(92)
         self.stop_btn.setMinimumWidth(92)
@@ -136,17 +147,24 @@ class ModeWorkbenchPanel(QtWidgets.QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(6)
 
-        self.parameter_tabs = QtWidgets.QTabWidget()
-        self.parameter_tabs.addTab(self._scroll(self._build_common_parameters_tab()), "共用参数")
+        page = QtWidgets.QWidget()
+        page_layout = QtWidgets.QVBoxLayout(page)
+        page_layout.setContentsMargins(0, 0, 0, 0)
+        page_layout.setSpacing(10)
+        page_layout.addWidget(self._build_common_parameters_tab(), 0)
 
         self.mode_stack = QtWidgets.QStackedWidget()
-        self.mode_stack.addWidget(self._scroll(self._build_normal_extra()))
-        self.mode_stack.addWidget(self._scroll(self._build_ultrafast_extra()))
-        self.mode_stack.addWidget(self._scroll(self._build_laser_extra()))
-        self.mode_tab_index = self.parameter_tabs.addTab(self.mode_stack, "模式参数")
-        self.special_tab_index: int | None = None
+        self.mode_stack.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Maximum,
+        )
+        self.mode_stack.addWidget(self._build_normal_extra())
+        self.mode_stack.addWidget(self._build_ultrafast_extra())
+        self.mode_stack.addWidget(self._build_laser_extra())
+        page_layout.addWidget(self.mode_stack, 0)
+        page_layout.addStretch(1)
 
-        layout.addWidget(self.parameter_tabs)
+        layout.addWidget(self._scroll(page))
         return panel
 
     def _build_plan_section(self):
@@ -167,26 +185,26 @@ class ModeWorkbenchPanel(QtWidgets.QWidget):
         page = QtWidgets.QWidget()
         grid = QtWidgets.QGridLayout(page)
         grid.setContentsMargins(0, 0, 0, 0)
-        grid.setSpacing(10)
+        grid.setSpacing(8)
 
         image_group, image_grid = self._group("图像 / 采样")
-        self.rows = self._spin(1, 65535, 1024, width=96)
-        self.cols = self._spin(1, 65535, 1024, width=96)
+        self.rows = self._spin(1, 65535, 6, width=96)
+        self.cols = self._spin(1, 65535, 8, width=96)
         self.sample = self._spin(1, 0x7FFFFFFF, 20, width=110)
         self.adc_channel = QtWidgets.QComboBox()
         for channel in (1, 2, 4):
             self.adc_channel.addItem(f"{channel} 通道", channel)
-        self.adc_channel.setCurrentIndex(2)
+        self.adc_channel.setCurrentIndex(0)
         self._add_param(image_grid, 0, "行数", self.rows, "rows", "1..65535", "写入 0x0004[31:16]")
         self._add_param(image_grid, 1, "列数", self.cols, "cols", "1..65535", "写入 0x0004[15:0]")
         self._add_param(image_grid, 2, "每点采样", self.sample, "points", "ADC/DAC 共用保持点数", "写入 0x0002")
         self._add_param(image_grid, 3, "ADC 通道", self.adc_channel, "count", "1/2/4", "写入 0x0001[1:0]")
 
         region_group, region_grid = self._group("扫描区域")
-        self.dacx_start = self._spin(0, 1023, self._axis_position_from_code(0x1999, 1024), width=96)
-        self.dacx_end = self._spin(0, 1023, self._axis_position_from_code(0xE665, 1024), width=96)
-        self.dacy_start = self._spin(0, 1023, self._axis_position_from_code(0x3BBB, 1024), width=96)
-        self.dacy_end = self._spin(0, 1023, self._axis_position_from_code(0xC443, 1024), width=96)
+        self.dacx_start = self._spin(0, 7, 0, width=96)
+        self.dacx_end = self._spin(0, 7, 7, width=96)
+        self.dacy_start = self._spin(0, 5, 0, width=96)
+        self.dacy_end = self._spin(0, 5, 5, width=96)
         self.dacx_tk_follow_cols = QtWidgets.QCheckBox("跟随列数")
         self.dacx_tk_follow_cols.setChecked(True)
         self.dacx_tk_point = self._spin(1, 0xFFFF, 1024, width=96)
@@ -197,7 +215,7 @@ class ModeWorkbenchPanel(QtWidgets.QWidget):
             "X 起点",
             self.dacx_start,
             "0..cols-1",
-            "raw 0x1999",
+            "raw 0x0000",
             "人类坐标，GUI 内部换算为 0x0005[31:16] 的 16-bit DAC code",
         )
         self._add_param(
@@ -206,7 +224,7 @@ class ModeWorkbenchPanel(QtWidgets.QWidget):
             "X 终点",
             self.dacx_end,
             "0..cols-1",
-            "raw 0xE665",
+            "raw 0xFFFF",
             "人类坐标，GUI 内部换算为 0x0005[15:0] 的 16-bit DAC code",
         )
         self._add_param(
@@ -215,7 +233,7 @@ class ModeWorkbenchPanel(QtWidgets.QWidget):
             "Y 起点",
             self.dacy_start,
             "0..rows-1",
-            "raw 0x3BBB",
+            "raw 0x0000",
             "人类坐标，GUI 内部换算为 0x0007[31:16] 的 16-bit DAC code",
         )
         self._add_param(
@@ -224,33 +242,33 @@ class ModeWorkbenchPanel(QtWidgets.QWidget):
             "Y 终点",
             self.dacy_end,
             "0..rows-1",
-            "raw 0xC443",
+            "raw 0xFFFF",
             "人类坐标，GUI 内部换算为 0x0007[15:0] 的 16-bit DAC code",
         )
         self._add_param(region_grid, 4, "X 点数", self.dacx_tk_follow_cols, "policy", "跟随 cols", "关闭后启用 X 点数覆盖，写入 0x0006[31:16]")
         self._add_param(region_grid, 5, "X 点数覆盖", self.dacx_tk_point, "pixels", "仅覆盖模式生效", "必须非 0，FPGA 用它计算 dacx_step")
 
         timing_group, timing_grid = self._group("扫描时序")
-        self.dacx_recovery_us = self._spin(0, 0xFFFF, 50, width=96)
-        self.dax_fall_us = self._spin(0, 0x7FFFFFFF, 20, width=110)
+        self.dacx_recovery_us = self._spin(0, 0xFFFF, 1, width=96)
+        self.dax_fall_us = self._spin(0, 0x7FFFFFFF, 1, width=110)
         self.frame_wait_words = self._spin(0, 0x7FFFFFFF, 0, width=118)
-        self._add_param(timing_grid, 0, "X 线首恢复", self.dacx_recovery_us, "us", "50 us -> 2500 words", "写入 0x0006[15:0]，RTL 内部 x50")
-        self._add_param(timing_grid, 1, "X 回扫下降", self.dax_fall_us, "us", "20 us -> 1000 words", "写入 0x000F，RTL 内部 x50")
+        self._add_param(timing_grid, 0, "X 线首恢复", self.dacx_recovery_us, "us", "1 us -> 50 words", "写入 0x0006[15:0]，RTL 内部 x50")
+        self._add_param(timing_grid, 1, "X 回扫下降", self.dax_fall_us, "us", "1 us -> 50 words", "写入 0x000F，RTL 内部 x50")
         self._add_param(timing_grid, 2, "帧间等待", self.frame_wait_words, "FIFO words", "0 words ~= 0 ns", "写入 0x0008，约 20ns/word")
 
         gain_group, gain_grid = self._group("增益 / 行帧")
-        self.adc1_gain = self._gain_combo(2)
-        self.adc2_gain = self._gain_combo(2)
-        self.adc3_gain = self._gain_combo(2)
-        self.adc4_gain = self._gain_combo(2)
-        self.dacx_gain = self._gain_combo(3)
-        self.dacy_gain = self._gain_combo(3)
-        self._add_param(gain_grid, 0, "ADC1", self.adc1_gain, "2-bit", "code 2", "写入 0x0003[1:0]")
-        self._add_param(gain_grid, 1, "ADC2", self.adc2_gain, "2-bit", "code 2", "写入 0x0003[3:2]")
-        self._add_param(gain_grid, 2, "ADC3", self.adc3_gain, "2-bit", "code 2", "写入 0x0003[5:4]")
-        self._add_param(gain_grid, 3, "ADC4", self.adc4_gain, "2-bit", "code 2", "写入 0x0003[7:6]")
-        self._add_param(gain_grid, 4, "DAC X", self.dacx_gain, "2-bit", "code 3", "写入 0x0003[9:8]")
-        self._add_param(gain_grid, 5, "DAC Y", self.dacy_gain, "2-bit", "code 3", "写入 0x0003[11:10]")
+        self.adc1_gain = self._gain_combo(2, ADC_GAIN_LABELS)
+        self.adc2_gain = self._gain_combo(2, ADC_GAIN_LABELS)
+        self.adc3_gain = self._gain_combo(2, ADC_GAIN_LABELS)
+        self.adc4_gain = self._gain_combo(2, ADC_GAIN_LABELS)
+        self.dacx_gain = self._gain_combo(3, DAC_GAIN_LABELS)
+        self.dacy_gain = self._gain_combo(3, DAC_GAIN_LABELS)
+        self._add_param(gain_grid, 0, "ADC1", self.adc1_gain, "range", "0x0003[1:0]", f"写入 0x0003[1:0]；{ADC_GAIN_TOOLTIP}")
+        self._add_param(gain_grid, 1, "ADC2", self.adc2_gain, "range", "0x0003[3:2]", f"写入 0x0003[3:2]；{ADC_GAIN_TOOLTIP}")
+        self._add_param(gain_grid, 2, "ADC3", self.adc3_gain, "range", "0x0003[5:4]", f"写入 0x0003[5:4]；{ADC_GAIN_TOOLTIP}")
+        self._add_param(gain_grid, 3, "ADC4", self.adc4_gain, "range", "0x0003[7:6]", f"写入 0x0003[7:6]；{ADC_GAIN_TOOLTIP}")
+        self._add_param(gain_grid, 4, "DAC X", self.dacx_gain, "range", "0x0003[9:8]", f"写入 0x0003[9:8]；{DAC_GAIN_TOOLTIP}")
+        self._add_param(gain_grid, 5, "DAC Y", self.dacy_gain, "range", "0x0003[11:10]", f"写入 0x0003[11:10]；{DAC_GAIN_TOOLTIP}")
         self.row_repeat = self._spin(1, 0xFFFF, 1, width=96)
         self.row_m = self._spin(0, 0xFFFF, 0, width=96)
         self.row_n = self._spin(1, 0xFFFF, 1, width=96)
@@ -259,12 +277,12 @@ class ModeWorkbenchPanel(QtWidgets.QWidget):
         self._add_param(gain_grid, 8, "交错 row_n", self.row_n, "scan rows", "1 = 逐行", "交错扫描：每组连续扫描 row_n 行；写入 0x0014[15:0]")
 
         grid.addWidget(image_group, 0, 0)
-        grid.addWidget(region_group, 0, 1)
         grid.addWidget(timing_group, 1, 0)
-        grid.addWidget(gain_group, 1, 1)
+        grid.addWidget(region_group, 0, 1, 2, 1)
+        grid.addWidget(gain_group, 0, 2, 2, 1)
         grid.setColumnStretch(0, 1)
         grid.setColumnStretch(1, 1)
-        grid.setRowStretch(2, 1)
+        grid.setColumnStretch(2, 1)
 
         self.dacx_tk_follow_cols.toggled.connect(self._toggle_dacx_tk_point)
         self.rows.valueChanged.connect(lambda _value: self._update_axis_ranges())
@@ -293,7 +311,6 @@ class ModeWorkbenchPanel(QtWidgets.QWidget):
         grid.addWidget(adc_group, 0, 0)
         grid.addWidget(note, 1, 0)
         grid.setColumnStretch(0, 1)
-        grid.setRowStretch(2, 1)
         return page
 
     def _build_ultrafast_extra(self):
@@ -329,7 +346,6 @@ class ModeWorkbenchPanel(QtWidgets.QWidget):
         grid.addWidget(adc_group, 0, 1)
         grid.setColumnStretch(0, 1)
         grid.setColumnStretch(1, 1)
-        grid.setRowStretch(1, 1)
         return page
 
     def _build_laser_extra(self):
@@ -338,36 +354,46 @@ class ModeWorkbenchPanel(QtWidgets.QWidget):
         grid.setContentsMargins(0, 0, 0, 0)
         grid.setSpacing(10)
 
-        enable_group, enable_grid = self._group("激光使能")
+        timing_group, timing_grid = self._group("激光同步 / 时序")
         self.laser_enable = QtWidgets.QCheckBox("应用后启用激光同步")
         self.laser_enable.setChecked(True)
-        self._add_param(enable_grid, 0, "激光同步", self.laser_enable, "0x020B", "checked write", "写入 0x020B[0]")
+        self.scan_delay = self._spin(0, 0xFFFF, 10, width=96)
+        self.blanker_delay = self._spin(0, 0xFFFF, 10, width=96)
+        self.blanker_time = self._spin(0, 0xFFFF, 10, width=96)
+        self.acq_delay = self._spin(0, 0xFFFF, 10, width=96)
+        self.acq_time = self._spin(0, 0xFFFF, 10, width=96)
+        self._add_param(timing_grid, 0, "激光同步", self.laser_enable, "0x020B", "checked write", "写入 0x020B[0]")
+        self._add_param(timing_grid, 1, "Scan Delay", self.scan_delay, "eth_clk cycles", "0 cycles ~= 0 ns", "写入 0x0206，8ns/step")
+        self._add_param(timing_grid, 2, "Blanker Delay", self.blanker_delay, "ui_clk cycles", "0 cycles ~= 0 ns", "写入 0x0207，5ns/step")
+        self._add_param(timing_grid, 3, "Blanker Time", self.blanker_time, "ui_clk cycles", "0 cycles ~= 0 ns", "写入 0x0208，5ns/step")
+        self._add_param(timing_grid, 4, "Acq Delay", self.acq_delay, "20ns steps", "0 steps ~= 0 ns", "写入 0x0209，RTL 内部 <<2")
+        self._add_param(timing_grid, 5, "Acq Time", self.acq_time, "samples / 20ns", "2 samples ~= 40 ns", "写入 0x020A；laser enable 时必须 >= 2")
 
-        timing_group, timing_grid = self._group("时序")
-        self.scan_delay = self._spin(0, 0xFFFF, 0, width=96)
-        self.blanker_delay = self._spin(0, 0xFFFF, 0, width=96)
-        self.blanker_time = self._spin(0, 0xFFFF, 0, width=96)
-        self.acq_delay = self._spin(0, 0xFFFF, 0, width=96)
-        self.acq_time = self._spin(0, 0xFFFF, 2, width=96)
-        self._add_param(timing_grid, 0, "Scan Delay", self.scan_delay, "eth_clk cycles", "0 cycles ~= 0 ns", "写入 0x0206，8ns/step")
-        self._add_param(timing_grid, 1, "Blanker Delay", self.blanker_delay, "ui_clk cycles", "0 cycles ~= 0 ns", "写入 0x0207，5ns/step")
-        self._add_param(timing_grid, 2, "Blanker Time", self.blanker_time, "ui_clk cycles", "0 cycles ~= 0 ns", "写入 0x0208，5ns/step")
-        self._add_param(timing_grid, 3, "Acq Delay", self.acq_delay, "20ns steps", "0 steps ~= 0 ns", "写入 0x0209，RTL 内部 <<2")
-        self._add_param(timing_grid, 4, "Acq Time", self.acq_time, "samples / 20ns", "2 samples ~= 40 ns", "写入 0x020A；laser enable 时必须 >= 2")
-
-        grid.addWidget(enable_group, 0, 0)
-        grid.addWidget(timing_group, 0, 1)
+        grid.addWidget(timing_group, 0, 0)
         grid.setColumnStretch(0, 1)
-        grid.setColumnStretch(1, 2)
-        grid.setRowStretch(1, 1)
         return page
 
     def _group(self, title: str):
         group = QtWidgets.QGroupBox(title)
+        tones = {
+            "图像 / 采样": "blue",
+            "扫描时序": "amber",
+            "扫描区域": "green",
+            "增益 / 行帧": "violet",
+            "普通模式 ADC": "slate",
+            "Sync 输出": "cyan",
+            "超快 ADC": "orange",
+            "激光同步 / 时序": "cyan",
+        }
+        group.setProperty("tone", tones.get(title, "neutral"))
+        group.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Maximum,
+        )
         grid = QtWidgets.QGridLayout(group)
-        grid.setContentsMargins(10, 10, 10, 10)
-        grid.setHorizontalSpacing(8)
-        grid.setVerticalSpacing(6)
+        grid.setContentsMargins(8, 8, 8, 8)
+        grid.setHorizontalSpacing(6)
+        grid.setVerticalSpacing(4)
         return group, grid
 
     def _scroll(self, widget):
@@ -381,15 +407,20 @@ class ModeWorkbenchPanel(QtWidgets.QWidget):
         frame = QtWidgets.QFrame()
         frame.setObjectName("ParamRow")
         layout = QtWidgets.QHBoxLayout(frame)
-        layout.setContentsMargins(4, 2, 4, 2)
-        layout.setSpacing(6)
+        layout.setContentsMargins(2, 1, 2, 1)
+        layout.setSpacing(5)
 
         name = QtWidgets.QLabel(label)
-        name.setMinimumWidth(92)
+        name.setMinimumWidth(74)
+        name.setMaximumWidth(92)
         unit_label = QtWidgets.QLabel(unit)
-        unit_label.setMinimumWidth(82)
+        unit_label.setMinimumWidth(54)
+        unit_label.setMaximumWidth(86)
         unit_label.setStyleSheet("QLabel { color: #475569; }")
         hint_label = QtWidgets.QLabel(hint)
+        hint_label.setMinimumWidth(80)
+        hint_label.setMaximumWidth(148)
+        hint_label.setWordWrap(True)
         hint_label.setStyleSheet("QLabel { color: #64748b; }")
 
         for control in (frame, name, widget, unit_label, hint_label):
@@ -410,6 +441,8 @@ class ModeWorkbenchPanel(QtWidgets.QWidget):
         box = QtWidgets.QSpinBox()
         box.setRange(minimum, min(maximum, 2147483647))
         box.setValue(value)
+        buttons = getattr(QtWidgets.QAbstractSpinBox, "ButtonSymbols", QtWidgets.QAbstractSpinBox)
+        box.setButtonSymbols(buttons.NoButtons)
         box.setMaximumWidth(width)
         box.setMinimumWidth(width)
         box.setKeyboardTracking(False)
@@ -448,12 +481,14 @@ class ModeWorkbenchPanel(QtWidgets.QWidget):
             widget.blockSignals(False)
         self._refresh_equivalents()
 
-    def _gain_combo(self, value: int):
+    def _gain_combo(self, value: int, labels: tuple[str, ...]):
         combo = QtWidgets.QComboBox()
-        for code in range(4):
-            combo.addItem(f"code {code}", code)
+        for code, label in enumerate(labels):
+            combo.addItem(label, code)
+            combo.setItemData(code, f"code {code}: {label}", QtCore.Qt.ItemDataRole.ToolTipRole)
         combo.setCurrentIndex(value)
-        combo.setMaximumWidth(82)
+        combo.setMinimumWidth(96)
+        combo.setMaximumWidth(118)
         return combo
 
     def _watch_widget(self, widget) -> None:
@@ -612,7 +647,6 @@ class ModeWorkbenchPanel(QtWidgets.QWidget):
 
     def _update_special_tab(self) -> None:
         self.mode_stack.setCurrentIndex({"normal": 0, "ultrafast": 1, "laser": 2}[self.current_mode])
-        self.parameter_tabs.setTabText(self.mode_tab_index, f"{MODE_LABELS[self.current_mode]}参数")
 
     def preview_plan(self, log_message: bool = True) -> None:
         try:
@@ -627,8 +661,6 @@ class ModeWorkbenchPanel(QtWidgets.QWidget):
             self._show(f"预览失败: {exc}")
 
     def apply_parameters(self) -> None:
-        if not self._confirm_real_action("应用参数"):
-            return
         try:
             plan = self._mode_config().to_plan()
             self.main_window.log(f"CLI: {self._mode_apply_cli_command()}")
@@ -655,8 +687,6 @@ class ModeWorkbenchPanel(QtWidgets.QWidget):
     def start_scan(self) -> None:
         if not self._can_start():
             self._show(self.block_start_reason or "当前状态不允许开始扫描")
-            return
-        if not self._confirm_real_action("开始扫描"):
             return
         try:
             self.main_window.log(f"CLI: {self._start_stop_cli_command('start')}")
@@ -817,19 +847,6 @@ class ModeWorkbenchPanel(QtWidgets.QWidget):
         self.main_window.statusBar().showMessage(message)
         if log:
             self.main_window.log(message)
-
-    def _confirm_real_action(self, action: str) -> bool:
-        if self.main_window.config.mock:
-            return True
-        buttons = getattr(QtWidgets.QMessageBox, "StandardButton", QtWidgets.QMessageBox)
-        answer = QtWidgets.QMessageBox.question(
-            self,
-            "确认真实硬件操作",
-            f"当前是 REAL 模式，将对 FPGA 执行“{action}”。确认继续？",
-            buttons.Yes | buttons.No,
-            buttons.No,
-        )
-        return answer == buttons.Yes
 
     def _mode_apply_cli_command(self) -> str:
         args = ["fpga-host", "mode", self.current_mode, "apply"]

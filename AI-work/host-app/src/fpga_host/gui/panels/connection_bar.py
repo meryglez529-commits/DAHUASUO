@@ -12,22 +12,22 @@ class ConnectionBar(QtWidgets.QWidget):
         self.main_window = main_window
 
         layout = QtWidgets.QHBoxLayout(self)
-        layout.setContentsMargins(10, 6, 10, 6)
-        layout.setSpacing(10)
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(6)
 
         self.mode_chip = QtWidgets.QLabel("MOCK")
         self.mode_chip.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        self.mode_chip.setMinimumWidth(58)
+        self.mode_chip.setMinimumWidth(52)
 
         self.transport_mode = QtWidgets.QComboBox()
         self.transport_mode.addItem("Mock", True)
         self.transport_mode.addItem("Real", False)
-        self.transport_mode.setMaximumWidth(92)
+        self.transport_mode.setMaximumWidth(78)
         self.transport_mode.setToolTip("选择使用本地 mock 传输，或连接真实 FPGA。")
 
-        self.host_ip = self._line_edit("0.0.0.0", 118)
+        self.host_ip = self._line_edit("0.0.0.0", 104)
         self.host_ip.setToolTip("0.0.0.0 表示自动绑定所有本机网卡，不是未配置。")
-        self.fpga_ip = self._line_edit("192.168.1.8", 128)
+        self.fpga_ip = self._line_edit("192.168.1.8", 112)
         self.local_port = self._port_spin()
         self.remote_port = self._port_spin()
 
@@ -37,21 +37,24 @@ class ConnectionBar(QtWidgets.QWidget):
         self.diagnose_btn = QtWidgets.QPushButton("诊断")
         self.diagnose_btn.setToolTip("读取版本和 scan_control，用于快速确认 UDP 控制链路。")
         self.version_label = QtWidgets.QLabel("version: -")
-        self.version_label.setMinimumWidth(150)
+        self.version_label.setMinimumWidth(116)
+        for button in (self.apply_btn, self.version_btn, self.diagnose_btn):
+            button.setMinimumWidth(70)
+            button.setMaximumWidth(78)
 
         layout.addWidget(self.mode_chip)
         layout.addWidget(self.transport_mode)
-        layout.addSpacing(4)
+        layout.addSpacing(2)
         layout.addWidget(QtWidgets.QLabel("本机 IP"))
         layout.addWidget(self.host_ip)
         layout.addWidget(QtWidgets.QLabel("本机端口"))
         layout.addWidget(self.local_port)
-        layout.addSpacing(6)
+        layout.addSpacing(4)
         layout.addWidget(QtWidgets.QLabel("FPGA IP"))
         layout.addWidget(self.fpga_ip)
         layout.addWidget(QtWidgets.QLabel("FPGA 端口"))
         layout.addWidget(self.remote_port)
-        layout.addSpacing(8)
+        layout.addSpacing(4)
         layout.addWidget(self.apply_btn)
         layout.addWidget(self.version_btn)
         layout.addWidget(self.version_label)
@@ -76,7 +79,10 @@ class ConnectionBar(QtWidgets.QWidget):
         box = QtWidgets.QSpinBox()
         box.setRange(1, 65535)
         box.setValue(32000)
-        box.setMaximumWidth(82)
+        buttons = getattr(QtWidgets.QAbstractSpinBox, "ButtonSymbols", QtWidgets.QAbstractSpinBox)
+        box.setButtonSymbols(buttons.NoButtons)
+        box.setMinimumWidth(66)
+        box.setMaximumWidth(70)
         return box
 
     def _is_mock_selected(self) -> bool:

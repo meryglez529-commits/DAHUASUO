@@ -37,6 +37,8 @@ class Dl5Panel(QtWidgets.QWidget):
         box = QtWidgets.QSpinBox()
         box.setRange(0, 0xFFFF)
         box.setValue(value)
+        buttons = getattr(QtWidgets.QAbstractSpinBox, "ButtonSymbols", QtWidgets.QAbstractSpinBox)
+        box.setButtonSymbols(buttons.NoButtons)
         return box
 
     def _config(self) -> Dl5Config:
