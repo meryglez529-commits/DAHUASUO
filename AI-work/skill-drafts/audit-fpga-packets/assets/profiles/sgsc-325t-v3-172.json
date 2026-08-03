@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "id": "sgsc-325t-v3-172",
+  "title": "SGSC SEM 325T V3.172 active RTL",
+  "firmware": "3.172",
+  "provenance": "rtl-verified",
+  "default_fpga_ip": "192.168.1.8",
+  "ports": {
+    "control": 32000,
+    "adc_data": 32001,
+    "remote_upgrade": 32004
+  },
+  "control": {
+    "magic": "5555AAAA",
+    "byte_order": "big",
+    "commands": {
+      "0x0001": {"name": "WRITE", "payload_length": 14, "declared_length": 6},
+      "0x0002": {"name": "READ", "payload_length": 10, "declared_length": 2},
+      "0x0003": {"name": "READ_RESPONSE", "payload_length": 14, "declared_length": 6}
+    }
+  },
+  "data_protocols": [
+    {
+      "name": "ADC_DATA_LEGACY",
+      "port": 32001,
+      "magic": "AA55AA55",
+      "header_length": 12,
+      "sequence_encoding": "sgsc48",
+      "length_offset": 10,
+      "length_width": 2,
+      "length_byte_order": "little",
+      "provenance": "rtl-verified"
+    },
+    {
+      "name": "ULTRAFAST_LINE",
+      "port": 32001,
+      "magic": "CC55CC55",
+      "header_length": 12,
+      "provenance": "rtl-verified"
+    }
+  ],
+  "registers": {
+    "0x0000": {"name": "clk_sel", "access": "rw", "provenance": "rtl-verified", "reserved_mask": "0xFFFFFFFE", "fields": [{"name": "external_trigger", "lsb": 0, "width": 1, "enum": {"0": "free_run", "1": "wait_trigger_in"}}]},
+    "0x0001": {"name": "adc_length_channel", "access": "rw", "provenance": "rtl-verified", "fields": [{"name": "adc_channel_mask", "lsb": 0, "width": 4, "format": "hex"}, {"name": "adc_len_single", "lsb": 4, "width": 21}]},
+    "0x0002": {"name": "adc_dac_sample_count", "access": "rw", "provenance": "rtl-verified", "fields": [{"name": "sample_count", "lsb": 0, "width": 32, "min": 1}]},
+    "0x0003": {"name": "adc_dac_gain", "access": "rw", "provenance": "rtl-verified", "reserved_mask": "0xFFFFF000", "fields": [{"name": "adc1_gain", "lsb": 0, "width": 2}, {"name": "adc2_gain", "lsb": 2, "width": 2}, {"name": "adc3_gain", "lsb": 4, "width": 2}, {"name": "adc4_gain", "lsb": 6, "width": 2}, {"name": "dacx_gain", "lsb": 8, "width": 2}, {"name": "dacy_gain", "lsb": 10, "width": 2}]},
+    "0x0004": {"name": "image_size", "access": "rw", "provenance": "rtl-verified", "fields": [{"name": "rows", "lsb": 16, "width": 16, "min": 1}, {"name": "cols", "lsb": 0, "width": 16, "min": 1}]},
+    "0x0005": {"name": "dacx_range", "access": "rw", "provenance": "rtl-verified", "fields": [{"name": "dacx_start", "lsb": 16, "width": 16, "format": "hex"}, {"name": "dacx_end", "lsb": 0, "width": 16, "format": "hex"}]},
+    "0x0006": {"name": "dacx_point_recovery", "access": "rw", "provenance": "rtl-verified", "note": "Writing this register triggers dacx_step recomputation.", "fields": [{"name": "dacx_tk_point", "lsb": 16, "width": 16, "min": 1}, {"name": "dacx_recovery", "lsb": 0, "width": 16, "unit": "us", "scale": 1}]},
+    "0x0007": {"name": "dacy_range", "access": "rw", "provenance": "rtl-verified", "fields": [{"name": "dacy_start", "lsb": 16, "width": 16, "format": "hex"}, {"name": "dacy_end", "lsb": 0, "width": 16, "format": "hex"}]},
+    "0x0008": {"name": "frame_wait", "access": "rw", "provenance": "rtl-verified", "fields": [{"name": "frame_wait_words", "lsb": 0, "width": 32, "unit": "ns", "scale": 20}]},
+    "0x0009": {"name": "scan_control", "access": "rw", "provenance": "rtl-verified", "fields": [{"name": "adc_interval", "lsb": 8, "width": 24, "unit": "ns", "scale": 20}, {"name": "scan_mode", "lsb": 4, "width": 4, "enum": {"1": "continuous", "2": "spot", "3": "single_frame", "4": "external", "5": "photo", "8": "graphics"}}, {"name": "scan_state", "lsb": 0, "width": 4, "enum": {"0": "stopped", "1": "running", "2": "stopped_alt", "3": "paused", "4": "continue"}}]},
+    "0x000A": {"name": "version", "access": "r", "provenance": "rtl-verified", "fields": [{"name": "version_c", "lsb": 24, "width": 8}, {"name": "version_a", "lsb": 16, "width": 8}, {"name": "version_b", "lsb": 0, "width": 16}]},
+    "0x000B": {"name": "remote_status", "access": "r", "provenance": "rtl-verified", "fields": [{"name": "status", "lsb": 0, "width": 32, "format": "hex"}]},
+    "0x000C": {"name": "remote_rstn", "access": "rw", "provenance": "rtl-verified", "reserved_mask": "0xFFFFFFFE", "fields": [{"name": "remote_rstn", "lsb": 0, "width": 1}]},
+    "0x000D": {"name": "heart_beat", "access": "rw", "provenance": "rtl-verified", "fields": [{"name": "heart_beat", "lsb": 0, "width": 32, "format": "hex"}]},
+    "0x000E": {"name": "pc_ack", "access": "w", "provenance": "rtl-verified", "fields": [{"name": "pc_ack", "lsb": 0, "width": 32, "format": "hex"}]},
+    "0x000F": {"name": "dax_fall_time", "access": "rw", "provenance": "rtl-verified", "conflicts_with_document": "DB500 V1.4 also lists DAC output enable at this address.", "fields": [{"name": "dax_fall_time", "lsb": 0, "width": 32, "unit": "us", "scale": 1}]},
+    "0x0010": {"name": "offset_adc1_adc2", "access": "rw", "provenance": "rtl-verified", "fields": [{"name": "adc1_offset", "lsb": 16, "width": 16, "signed": true}, {"name": "adc2_offset", "lsb": 0, "width": 16, "signed": true}]},
+    "0x0011": {"name": "offset_adc3_adc4", "access": "rw", "provenance": "rtl-verified", "fields": [{"name": "adc3_offset", "lsb": 16, "width": 16, "signed": true}, {"name": "adc4_offset", "lsb": 0, "width": 16, "signed": true}]},
+    "0x0012": {"name": "offset_dacx_dacy", "access": "rw", "provenance": "rtl-verified", "fields": [{"name": "dacx_offset", "lsb": 16, "width": 16, "signed": true}, {"name": "dacy_offset", "lsb": 0, "width": 16, "signed": true}]},
+    "0x0013": {"name": "row_repeat", "access": "rw", "provenance": "rtl-verified", "reserved_mask": "0xFFFF0000", "fields": [{"name": "row_repeat", "lsb": 0, "width": 16, "min": 1}]},
+    "0x0014": {"name": "row_group", "access": "rw", "provenance": "rtl-verified", "fields": [{"name": "row_m", "lsb": 16, "width": 16}, {"name": "row_n", "lsb": 0, "width": 16, "min": 1}]},
+    "0x0200": {"name": "sync1_width", "access": "rw", "provenance": "rtl-verified", "reserved_mask": "0xFFFF0000", "fields": [{"name": "sync1_width", "lsb": 0, "width": 16, "unit": "ns", "scale": 20}]},
+    "0x0201": {"name": "adc_acq_delay", "access": "rw", "provenance": "rtl-verified", "fields": [{"name": "adc_acq_delay", "lsb": 0, "width": 32, "unit": "ns", "scale": 20}]},
+    "0x0202": {"name": "ultrafast_control", "access": "rw", "provenance": "rtl-verified", "fields": [{"name": "ultrafast_mode", "lsb": 0, "width": 1, "enum": {"0": "disabled", "1": "enabled"}}, {"name": "ultrafast_line_recovery", "lsb": 1, "width": 31, "unit": "us", "scale": 1}]},
+    "0x0203": {"name": "sync_delays", "access": "rw", "provenance": "rtl-verified", "fields": [{"name": "sync1_delay", "lsb": 16, "width": 16, "unit": "ns", "scale": 5}, {"name": "sync2_delay", "lsb": 0, "width": 16, "unit": "ns", "scale": 5}]},
+    "0x0204": {"name": "acq_dead_time", "access": "rw", "provenance": "rtl-verified", "fields": [{"name": "acq_dead_time", "lsb": 0, "width": 32, "unit": "ns", "scale": 20}]},
+    "0x0205": {"name": "sync2_width", "access": "rw", "provenance": "rtl-verified", "reserved_mask": "0xFFFF0000", "fields": [{"name": "sync2_width", "lsb": 0, "width": 16, "unit": "ns", "scale": 20}]},
+    "0x0206": {"name": "scan_delay", "access": "rw", "provenance": "rtl-verified", "reserved_mask": "0xFFFF0000", "fields": [{"name": "scan_delay", "lsb": 0, "width": 16, "unit": "ns", "scale": 8}]},
+    "0x0207": {"name": "blanker_delay", "access": "rw", "provenance": "rtl-verified", "reserved_mask": "0xFFFF0000", "fields": [{"name": "blanker_delay", "lsb": 0, "width": 16, "unit": "ns", "scale": 5}]},
+    "0x0208": {"name": "blanker_time", "access": "rw", "provenance": "rtl-verified", "reserved_mask": "0xFFFF0000", "fields": [{"name": "blanker_time", "lsb": 0, "width": 16, "unit": "ns", "scale": 5}]},
+    "0x0209": {"name": "acq_delay", "access": "rw", "provenance": "rtl-verified", "reserved_mask": "0xFFFF0000", "fields": [{"name": "acq_delay", "lsb": 0, "width": 16, "unit": "ns", "scale": 20}]},
+    "0x020A": {"name": "acq_time", "access": "rw", "provenance": "rtl-verified", "reserved_mask": "0xFFFF0000", "fields": [{"name": "acq_time", "lsb": 0, "width": 16, "unit": "ns", "scale": 20, "min_when_enabled": 2}]},
+    "0x020B": {"name": "laser_mode_en", "access": "rw", "provenance": "rtl-verified", "reserved_mask": "0xFFFFFFFE", "fields": [{"name": "laser_mode", "lsb": 0, "width": 1, "enum": {"0": "disabled", "1": "enabled"}}]}
+  },
+  "audit": {
+    "scan_control_address": "0x0009",
+    "parameter_addresses": ["0x0000", "0x0001", "0x0002", "0x0003", "0x0004", "0x0005", "0x0006", "0x0007", "0x0008", "0x000F", "0x0010", "0x0011", "0x0012", "0x0013", "0x0014", "0x0200", "0x0201", "0x0202", "0x0203", "0x0204", "0x0205", "0x0206", "0x0207", "0x0208", "0x0209", "0x020A", "0x020B"],
+    "enable_dependencies": [
+      {"address": "0x020B", "mask": "0x00000001", "equals": "0x00000001", "required_prior": ["0x0206", "0x0207", "0x0208", "0x0209", "0x020A"], "message": "Laser mode enabled before all DL5 timing registers were observed in this session."}
+    ]
+  }
+}

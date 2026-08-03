@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "id": "db500-v1.4-document",
+  "title": "DB500 Gigabit Communication Protocol V1.4 document comparison",
+  "firmware": "document-v1.4-20250113",
+  "coverage": "control protocol and current-project overlap only",
+  "provenance": "document-only",
+  "default_fpga_ip": null,
+  "ports": {"control": 32000, "adc_data": 32001, "image_load": 32002, "graphics": 32003, "remote_upgrade": 32004, "scan_waveform": 32006},
+  "control": {
+    "magic": "5555AAAA",
+    "byte_order": "big",
+    "commands": {
+      "0x0001": {"name": "WRITE", "payload_length": 14, "declared_length": 6},
+      "0x0002": {"name": "READ", "payload_length": 10, "declared_length": 2},
+      "0x0003": {"name": "READ_RESPONSE", "payload_length": 14, "declared_length": 6}
+    }
+  },
+  "registers": {
+    "0x0000": {"name": "clock_select_document", "access": "rw", "provenance": "document-only"},
+    "0x0001": {"name": "adc_length_channel_document", "access": "rw", "provenance": "document-only"},
+    "0x0002": {"name": "adc_dac_sample_rate_document", "access": "rw", "provenance": "document-only"},
+    "0x0003": {"name": "adc_dac_gain_document", "access": "rw", "provenance": "document-only"},
+    "0x0004": {"name": "image_size_document", "access": "rw", "provenance": "document-only"},
+    "0x0005": {"name": "dax_range_document", "access": "rw", "provenance": "document-only"},
+    "0x0006": {"name": "dax_points_wait_document", "access": "rw", "provenance": "document-only"},
+    "0x0007": {"name": "day_range_document", "access": "rw", "provenance": "document-only"},
+    "0x0008": {"name": "frame_wait_document", "access": "rw", "provenance": "document-only"},
+    "0x0009": {"name": "scan_control_document", "access": "rw", "provenance": "document-only"},
+    "0x000A": {"name": "version_document", "access": "r", "provenance": "document-only"},
+    "0x000B": {"name": "remote_status_document", "access": "r", "provenance": "document-only"},
+    "0x000C": {"name": "remote_file_length_document", "access": "rw", "provenance": "conflict", "note": "Active SGSC RTL uses remote_rstn bit0."},
+    "0x000D": {"name": "heartbeat_document", "access": "rw", "provenance": "document-only"},
+    "0x000E": {"name": "handshake_sequence_document", "access": "w", "provenance": "conflict", "note": "Active SGSC RTL names this pc_ack."},
+    "0x000F": {"name": "dax_fall_or_dac_enable_document", "access": "rw", "provenance": "conflict", "note": "The V1.4 table assigns two meanings to 0x000F."},
+    "0x0200": {"name": "sync1_width_document", "access": "rw", "provenance": "document-only"},
+    "0x0201": {"name": "pixel_acq_delay_document", "access": "rw", "provenance": "document-only"},
+    "0x0202": {"name": "blanker_enable_document", "access": "rw", "provenance": "conflict", "note": "Active RTL also stores ultrafast line recovery in bits 31:1."},
+    "0x0203": {"name": "sync_delays_document", "access": "rw", "provenance": "document-only"},
+    "0x0204": {"name": "pixel_acq_dead_time_document", "access": "rw", "provenance": "document-only"},
+    "0x0205": {"name": "sync2_width_document", "access": "rw", "provenance": "document-only"},
+    "0x0206": {"name": "scan_delay_document", "access": "rw", "provenance": "document-only"},
+    "0x0207": {"name": "blanker_delay_document", "access": "rw", "provenance": "document-only"},
+    "0x0208": {"name": "blanker_time_document", "access": "rw", "provenance": "document-only"},
+    "0x0209": {"name": "acq_delay_document", "access": "rw", "provenance": "document-only"},
+    "0x020A": {"name": "acq_time_document", "access": "rw", "provenance": "document-only"},
+    "0x020B": {"name": "laser_mode_enable_document", "access": "rw", "provenance": "document-only"}
+  },
+  "audit": {"scan_control_address": "0x0009", "parameter_addresses": []}
+}

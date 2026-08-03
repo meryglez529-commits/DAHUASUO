@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>__REPORT_TITLE__</title>
+<style>
+:root{font-family:Inter,Segoe UI,Arial,sans-serif;color:#162033;background:#f4f7fb}*{box-sizing:border-box}body{margin:0}header{background:#17233b;color:white;padding:22px 28px}header h1{margin:0 0 6px;font-size:24px}header p{margin:0;color:#bec9da}.wrap{padding:20px 28px;max-width:1500px;margin:auto}.cards{display:grid;grid-template-columns:repeat(5,minmax(110px,1fr));gap:12px}.card,.panel{background:white;border:1px solid #dce3ed;border-radius:9px;box-shadow:0 2px 8px #1d2c4a12}.card{padding:14px}.card b{display:block;font-size:25px;margin-top:5px}.FAIL{color:#b42318}.WARN{color:#b54708}.PASS{color:#027a48}.INFO{color:#344054}.panel{margin-top:16px;padding:16px}h2{font-size:18px;margin:0 0 12px}.filters{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:12px}input,select{border:1px solid #cbd5e1;border-radius:6px;padding:7px 9px;background:white}table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;padding:8px;border-bottom:1px solid #e5eaf1}th{background:#f8fafc;position:sticky;top:0}tr.packet{cursor:pointer}tr.packet:hover{background:#eef5ff}.layout{display:grid;grid-template-columns:minmax(620px,1.3fr) minmax(420px,1fr);gap:16px}.scroll{max-height:560px;overflow:auto}.finding{border-left:4px solid #98a2b3;padding:8px 11px;margin:8px 0;background:#f8fafc}.finding.FAIL{border-color:#d92d20}.finding.WARN{border-color:#f79009}.byte-row{display:flex;gap:4px;flex-wrap:wrap;margin:12px 0}.byte{font-family:Consolas,monospace;padding:6px 7px;border-radius:4px;background:#e8eef8;border:1px solid #d1d9e7}.g0{background:#e9d7fe}.g1{background:#d1e9ff}.g2{background:#d3f8df}.g3{background:#fef0c7}.g4{background:#fee4e2}.field-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px}.field{border:1px solid #dce3ed;border-radius:6px;padding:8px}.field small{display:block;color:#667085}.raw{font-family:Consolas,monospace;word-break:break-all;background:#111827;color:#e5e7eb;padding:10px;border-radius:6px}.muted{color:#667085}.badge{display:inline-block;border-radius:999px;background:#eef2f6;padding:3px 8px;font-size:12px}@media(max-width:1000px){.layout{grid-template-columns:1fr}.cards{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<header><h1>FPGA Packet Audit</h1><p id="subtitle"></p></header>
+<main class="wrap">
+  <section class="cards" id="cards"></section>
+  <section class="panel"><h2>Findings</h2><div id="findings"></div></section>
+  <section class="layout">
+    <div class="panel"><h2>Packets</h2><div class="filters"><select id="verdict"><option value="">All verdicts</option><option>FAIL</option><option>WARN</option><option>PASS</option><option>INFO</option></select><select id="direction"><option value="">All directions</option></select><input id="search" placeholder="command, address, register"></div><div class="scroll"><table><thead><tr><th>#</th><th>Direction</th><th>Protocol</th><th>Command</th><th>Register</th><th>Value</th><th>Verdict</th></tr></thead><tbody id="packetRows"></tbody></table></div></div>
+    <div class="panel"><h2>Packet Evidence</h2><div id="detail" class="muted">Select a packet.</div></div>
+  </section>
+</main>
+<script>
+const DATA=__AUDIT_DATA__;
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const counts=DATA.audit.summary.verdict_counts, findingCounts=DATA.audit.summary.finding_counts;
+document.getElementById('subtitle').textContent=`${DATA.session.profile_id} · ${DATA.session.source}`;
+document.getElementById('cards').innerHTML=[['Packets',DATA.audit.summary.packet_count,'INFO'],['PASS packets',counts.PASS,'PASS'],['WARN findings',findingCounts.WARN,'WARN'],['FAIL findings',findingCounts.FAIL,'FAIL'],['Findings',DATA.audit.summary.finding_count,'INFO']].map(x=>`<div class="card"><span>${x[0]}</span><b class="${x[2]}">${x[1]}</b></div>`).join('');
+document.getElementById('findings').innerHTML=DATA.audit.findings.length?DATA.audit.findings.map(f=>`<div class="finding ${esc(f.severity)}"><b>${esc(f.severity)} · ${esc(f.title)}</b><div>${esc(f.message)}</div><small>Packets: ${esc(f.packet_numbers.map(n=>'#'+n).join(', ')||'session')}</small></div>`).join(''):'<div class="muted">No deterministic findings.</div>';
+const directions=[...new Set(DATA.packets.map(p=>p.direction))];document.getElementById('direction').innerHTML+=[...directions].map(v=>`<option>${esc(v)}</option>`).join('');
+function fields(p){const bytes=(p.payload_hex.match(/../g)||[]);const owners=bytes.map(()=>-1);(p.byte_fields||[]).forEach((f,i)=>{for(let n=f.start;n<Math.min(bytes.length,f.start+f.length);n++)owners[n]=i});return {bytes,owners}}
+function detail(p){const x=fields(p);const groups=p.byte_fields||[];document.getElementById('detail').innerHTML=`<div><span class="badge ${esc(p.verdict)}">${esc(p.verdict)}</span> <b>Packet #${esc(p.number)}</b> · ${esc(p.direction)}</div><p>${esc(p.protocol)} ${esc(p.command||'')} ${esc(p.address||'')} ${esc(p.register_name||'')}</p><div class="byte-row">${x.bytes.map((b,i)=>`<span class="byte g${Math.max(0,x.owners[i])%5}" title="offset ${i.toString(16).padStart(2,'0').toUpperCase()}">${b}</span>`).join('')}</div><div class="field-grid">${groups.map((f,i)=>`<div class="field g${i%5}"><small>${esc(f.start)}..${esc(f.start+f.length-1)} · ${esc(f.name)}</small><b>${esc(f.decode)}</b><div>${esc(f.meaning)}</div></div>`).join('')}</div><h3>Register fields</h3>${(p.register_fields||[]).map(f=>`<div><code>${esc(f.name)}</code>: ${esc(f.display)}</div>`).join('')||'<div class="muted">None</div>'}<h3>Raw payload</h3><div class="raw">${esc(p.payload_hex)}</div>${(p.errors||[]).map(v=>`<p class="FAIL">FAIL: ${esc(v)}</p>`).join('')}${(p.warnings||[]).map(v=>`<p class="WARN">WARN: ${esc(v)}</p>`).join('')}`}
+function render(){const verdict=document.getElementById('verdict').value,dir=document.getElementById('direction').value,q=document.getElementById('search').value.toLowerCase();const rows=DATA.packets.filter(p=>(!verdict||p.verdict===verdict)&&(!dir||p.direction===dir)&&(!q||JSON.stringify([p.command,p.address,p.register_name,p.value_hex]).toLowerCase().includes(q)));document.getElementById('packetRows').innerHTML=rows.map(p=>`<tr class="packet" data-n="${p.number}"><td>${p.number}</td><td>${esc(p.direction)}</td><td>${esc(p.protocol)}</td><td>${esc(p.command||'')}</td><td>${esc((p.address||'')+' '+(p.register_name||''))}</td><td>${esc(p.value_hex||'')}</td><td class="${esc(p.verdict)}">${esc(p.verdict)}</td></tr>`).join('');document.querySelectorAll('tr.packet').forEach(row=>row.onclick=()=>detail(DATA.packets.find(p=>String(p.number)===row.dataset.n)))}
+['verdict','direction','search'].forEach(id=>document.getElementById(id).addEventListener(id==='search'?'input':'change',render));render();if(DATA.packets.length)detail(DATA.packets[0]);
+</script>
+</body>
+</html>

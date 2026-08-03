@@ -1,0 +1,4 @@
+interface:
+  display_name: "FPGA Packet Auditor"
+  short_description: "Decode FPGA captures and explain protocol mismatches"
+  default_prompt: "Use $audit-fpga-packets to audit an FPGA host-to-board packet capture and explain every mismatch."

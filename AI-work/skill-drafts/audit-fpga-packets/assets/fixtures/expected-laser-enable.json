@@ -1,0 +1,11 @@
+{
+  "mode": "laser-address-check",
+  "items": [
+    {
+      "address": "0x020B",
+      "value": "0x00000001",
+      "checked": false,
+      "label": "Enable laser mode"
+    }
+  ]
+}
