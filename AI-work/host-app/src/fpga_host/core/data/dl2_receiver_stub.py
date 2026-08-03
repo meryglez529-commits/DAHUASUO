@@ -39,10 +39,13 @@ class MockDl2Receiver(Dl2ReceiverStub):
     def get_frame(self, timeout_ms: int | None = None) -> FrameModel | None:
         if not self.running:
             return None
-        sample_count = min(self.rows * self.cols * self.channels, 4096)
+        sample_count = self.rows * self.cols * self.channels
         payload = bytearray()
         for index in range(sample_count):
-            payload.extend((index & 0xFFFF).to_bytes(2, "big"))
+            pixel = index // self.channels
+            channel = index % self.channels
+            value = (pixel * 257 + channel * 4096) & 0xFFFF
+            payload.extend(value.to_bytes(2, "little"))
         return FrameModel(
             rows=self.rows,
             cols=self.cols,

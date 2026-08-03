@@ -15,6 +15,9 @@ class FrameModel:
     payload: bytes = b""
     timestamp: float = field(default_factory=time.time)
     source: str = "mock"
+    sequence_start: int | None = None
+    sequence_end: int | None = None
+    dropped_packets: int = 0
 
     @property
     def expected_samples(self) -> int:
@@ -34,4 +37,7 @@ class FrameModel:
             "expected_bytes": self.expected_bytes,
             "timestamp": self.timestamp,
             "source": self.source,
+            "sequence_start": self.sequence_start,
+            "sequence_end": self.sequence_end,
+            "dropped_packets": self.dropped_packets,
         }

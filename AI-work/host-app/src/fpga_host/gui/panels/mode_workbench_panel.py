@@ -198,7 +198,7 @@ class ModeWorkbenchPanel(QtWidgets.QWidget):
         self._add_param(image_grid, 0, "行数", self.rows, "rows", "1..65535", "写入 0x0004[31:16]")
         self._add_param(image_grid, 1, "列数", self.cols, "cols", "1..65535", "写入 0x0004[15:0]")
         self._add_param(image_grid, 2, "每点采样", self.sample, "points", "ADC/DAC 共用保持点数", "写入 0x0002")
-        self._add_param(image_grid, 3, "ADC 通道", self.adc_channel, "count", "1/2/4", "写入 0x0001[1:0]")
+        self._add_param(image_grid, 3, "ADC 通道", self.adc_channel, "count", "1->ADC1, 2->ADC1/2, 4->ADC1..4", "写入 0x0001[3:0] bitmask")
 
         region_group, region_grid = self._group("扫描区域")
         self.dacx_start = self._spin(0, 7, 0, width=96)
@@ -601,6 +601,9 @@ class ModeWorkbenchPanel(QtWidgets.QWidget):
             row_m=self.row_m.value(),
             row_n=self.row_n.value(),
         )
+
+    def current_scan_config(self) -> ScanConfig:
+        return self._scan_config()
 
     def _mode_config(self):
         scan = self._scan_config()

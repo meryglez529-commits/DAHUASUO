@@ -5,19 +5,19 @@ from __future__ import annotations
 QT_API = ""
 
 try:
-    from PySide6 import QtCore, QtWidgets
+    from PySide6 import QtCore, QtGui, QtWidgets
 
     QT_API = "PySide6"
 except ImportError:
     try:
-        from PyQt6 import QtCore, QtWidgets
+        from PyQt6 import QtCore, QtGui, QtWidgets
 
         QT_API = "PyQt6"
         QtCore.Signal = QtCore.pyqtSignal
         QtCore.Slot = QtCore.pyqtSlot
     except ImportError:
         try:
-            from PyQt5 import QtCore, QtWidgets
+            from PyQt5 import QtCore, QtGui, QtWidgets
 
             QT_API = "PyQt5"
             QtCore.Signal = QtCore.pyqtSignal

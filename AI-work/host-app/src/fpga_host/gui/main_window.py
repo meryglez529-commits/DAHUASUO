@@ -7,6 +7,7 @@ from fpga_host.core.control.device import FpgaDevice
 from fpga_host.core.control.register_client import RegisterClient
 from fpga_host.core.transport.mock_transport import MockTransport
 from fpga_host.core.transport.udp_transport import UdpTransport
+from fpga_host.gui.panels.adc_image_panel import AdcImagePanel
 from fpga_host.gui.panels.connection_bar import ConnectionBar
 from fpga_host.gui.panels.connection_panel import ConnectionPanel
 from fpga_host.gui.panels.log_panel import LogPanel
@@ -34,6 +35,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.connection_panel = ConnectionPanel(self)
         self.register_panel = RegisterPanel(self)
         self.mode_panel = ModeWorkbenchPanel(self)
+        self.adc_image_panel = AdcImagePanel(self)
 
         advanced_panel = QtWidgets.QWidget()
         advanced_layout = QtWidgets.QHBoxLayout(advanced_panel)
@@ -42,6 +44,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         tabs.addTab(self.mode_panel, "模式控制")
         tabs.addTab(advanced_panel, "高级调试")
+
+        tabs.insertTab(1, self.adc_image_panel, "ADC Imaging")
 
         root_layout.addWidget(self.connection_bar)
         root_layout.addWidget(tabs, 1)
@@ -61,6 +65,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.connection_bar.set_config(config)
         if hasattr(self, "mode_panel"):
             self.mode_panel.on_connection_updated()
+        if hasattr(self, "adc_image_panel"):
+            self.adc_image_panel.on_connection_updated()
         host = "auto(0.0.0.0)" if config.host_ip == "0.0.0.0" else config.host_ip
         mode = "mock" if config.mock else "real"
         summary = f"{mode} host={host}:{config.local_port} fpga={config.fpga_ip}:{config.remote_port}"

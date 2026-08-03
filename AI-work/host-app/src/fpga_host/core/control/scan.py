@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from fpga_host.core.data.dl2_protocol import channel_count_to_mask
 from fpga_host.core.errors import ConfigError
 
 
@@ -121,6 +122,12 @@ class ScanConfig:
             return self.adc_len_single
         return self.rows * self.cols
 
+    def adc_channel_mask(self) -> int:
+        try:
+            return channel_count_to_mask(self.adc_channel)
+        except ValueError as exc:
+            raise ConfigError(str(exc)) from exc
+
     def effective_dacx_tk_point(self) -> int:
         if self.dacx_tk_point is not None:
             return self.dacx_tk_point
@@ -130,7 +137,7 @@ class ScanConfig:
         self.validate()
         if not 0 <= scan_state <= 0xF:
             raise ConfigError("scan_state must fit in 4 bits")
-        adc_cfg = (self.effective_adc_len_single() << 4) | self.adc_channel
+        adc_cfg = (self.effective_adc_len_single() << 4) | self.adc_channel_mask()
         sample = self.adc_sample
         gain_cfg = (
             self.adc1_gain

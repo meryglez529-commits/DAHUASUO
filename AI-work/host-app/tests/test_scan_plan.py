@@ -22,12 +22,18 @@ class ScanPlanTests(unittest.TestCase):
             ).to_registers(scan_state=0)
         )
         self.assertEqual(plan[0x0004], 0x04000400)
+        self.assertEqual(plan[0x0001], (1024 * 1024 << 4) | 0xF)
         self.assertEqual(plan[0x0002], 20)
         self.assertEqual(plan[0x0003], 0x00000FAA)
         self.assertEqual(plan[0x0008], 0)
         self.assertEqual(plan[0x0013], 1)
         self.assertEqual(plan[0x0014], 1)
         self.assertEqual(plan[0x0009], (19 << 8) | (1 << 4))
+
+    def test_adc_channel_count_maps_to_rtl_bitmask(self):
+        self.assertEqual(dict(ScanConfig(adc_channel=1).to_registers())[0x0001] & 0xF, 0x1)
+        self.assertEqual(dict(ScanConfig(adc_channel=2).to_registers())[0x0001] & 0xF, 0x3)
+        self.assertEqual(dict(ScanConfig(adc_channel=4).to_registers())[0x0001] & 0xF, 0xF)
 
     def test_sample_must_match(self):
         with self.assertRaises(ConfigError):
