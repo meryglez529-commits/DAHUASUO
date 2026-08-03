@@ -565,6 +565,17 @@ always@(posedge ui_clk or negedge ui_rstn)
        end
         endcase
 assign sync_pixel_tri2 = sync_pixel_tri2_reg;
+ila_3 ila_3 (
+	.clk(ui_clk), // input wire clk
+
+
+	.probe0(sync2_state), // input wire [3:0]  probe0
+	.probe1(sync2_pixel_tri_r1), // input wire [0:0]  probe1
+	.probe2(sync2_pixel_tri_wigth_r), // input wire [31:0]  probe2
+	.probe3(sync_sig_delay2), // input wire [15:0]  probe3
+	.probe4(sync_pixel_tri2_reg), // input wire [0:0]  probe4
+	.probe5(sync_pixel_tri2) // input wire [0:0]  probe5
+);
 
 // ILA 调试：观察 sync2 原始输入、宽度、状态机、计数器和最终外部输出。
 // DL5 acquisition timing ILA, ui_clk domain.

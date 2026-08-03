@@ -216,7 +216,7 @@ begin
                                 state               <= 4'd3;
                     end
                     else if(laser_mode_en_r2 == 1)begin
-                        // 激光模式：单像素多窗口，跳过 dead time，窗口采满后根据 image_column 判断是否继续。
+                        // 激光模式：每个 laser/acq 窗口只采一个像素；未到行尾时回到 state 0 等下一次 adc_tri。
                         adc_valid_point_cnt <= 0;
                         acq_en              <= 1'b0;
                         if(image_column_cnt == image_column_r2) begin
@@ -226,7 +226,7 @@ begin
                             line_count_en       <= 1'b1;
                         end
                         else
-                            state               <= 4'd1;
+                            state               <= 4'd0;
                     end
                     else begin
                         // 普通模式一次触发只采一整行，窗口结束后回到等待触发。
