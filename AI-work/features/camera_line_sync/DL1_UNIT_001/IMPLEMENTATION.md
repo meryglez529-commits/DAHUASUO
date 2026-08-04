@@ -51,6 +51,16 @@ RTL、聚焦仿真和全工程 RTL elaboration 已通过。独立综合已完成
 | 1 | 未开始编译 | Vivado 2021.1 从 `bin/unwrapped/win64.o` 启动，旧模板按相对路径查找 `glbl.v` 失败；已改为本机已确认存在的 `D:/Xilinx/Vivado/2021.1/data/verilog/src/glbl.v`，随后重跑。 |
 | 2 | PASS | `run_manual.tcl` 完成 xvlog、xelab 与 Tcl 托管 xsim；测试台在 1431 ns 打印 `PASS`，结果为 `out/sim/result.txt`。 |
 
+## Route result (2026-08-04)
+
+- With explicit user authorization, refreshed project-managed `synth_1` and `impl_1` and ran only through `route_design`; `write_bitstream` was not run.
+- Fresh `synth_1` completed in 1m47 with 0 ERROR / 0 CRITICAL WARNING. `impl_1` status: `route_design Complete!`.
+- Final timing: WNS = **+0.119 ns**, TNS = 0, WHS = **+0.053 ns**, THS = 0, WPWS = +0.143 ns. Setup, hold, and pulse-width timing are all closed.
+- Placed resources: Slice LUT = 62,620 (30.73%), Slice Register = 101,736 (24.96%), BRAM Tile = 404.5 (90.90%), DSP = 16 (1.90%). This feature does not change FIFO width or FIFO IP.
+- `report_drc` has no Error; it retains 198 project warnings (including 2 `RPBF-3` IO-port buffering warnings). `report_methodology` retains 36 project Critical Warnings (TIMING-6/7 clock relations) and 556 warnings. These were not introduced by this feature; clock/XDC work is out of this authorized scope.
+- Evidence: `out/impl/run_status.txt`, `out/impl/ETH_TOP_timing_summary_routed.rpt`, `out/impl/ETH_TOP_utilization_placed.rpt`, `out/impl/ETH_TOP_drc_routed.rpt`, `out/impl/ETH_TOP_methodology_drc_routed.rpt`, `out/impl/runme.log`, `out/impl/vivado_route_20260804.log`, and `out/impl/vivado_route_20260804.backup.log`. Root Vivado logs were archived to `out/impl/`.
+- Hardware acceptance still requires explicit bitstream authorization and board-level oscilloscope/ILA checking.
+
 ## RTL elaboration
 
 - 命令：`vivado.bat -mode batch -source synth/run_rtl_elaboration.tcl`。
@@ -71,6 +81,13 @@ RTL、聚焦仿真和全工程 RTL elaboration 已通过。独立综合已完成
 - 最差 setup 路径是既有 `U6/N1/step_count_reg[15] -> day_level_reg[63]`，并非新增的相机同步寄存器。最差 hold 同样位于既有全工程路径；本次没有修改这些模块。
 - 资源报告为 LUT 33.01%、Reg 28.00%、BRAM 90.90%、DSP 1.90%、IOB 70.25%。该结果不能与 2026-06-22 的 `synth_1` 直接比较：旧 run 使用已完成的 OOC/IP 结果，而独立 `synth_design` 会重新展开其实现。
 - 结论：本次独立综合证明当前 RTL 可综合且端口贯通，但不能作为时序签核或资源增量证据。若需要完成闭环，必须由用户明确允许刷新受规则保护的 `AXI_DDR.runs/synth_1`，或提供可复用的、已签核的完整综合基线。
+
+## Implementation 执行（2026-08-04）
+
+- 用户已明确授权刷新 `AXI_DDR.runs/synth_1` 与 `impl_1`，以使用当前相机同步 RTL 完成 route_design；不执行 write_bitstream。
+- 脚本：`impl/run_impl.tcl`。它在 project-managed run 完成后，将综合/实现日志、时序、资源、DRC、methodology 和 route status 报告复制到 `out/impl/`。
+- 首轮：当前综合已在 1 分 47 秒完成（0 ERROR / 0 CRITICAL WARNING），首次 route 在 Phase 2.4 被中断，未形成可用结果。
+- 续跑：使用 `impl/run_impl_only.tcl` 复用这次最新 `synth_1`，重置并重跑 `impl_1` 至 route_design；结果待回填。
 
 ## 产物边界
 
