@@ -2,13 +2,14 @@
 
 ## 当前状态
 
-尚不可运行。本单元将遵循 `AI-work/guide/VIVADO_SIM_SOP.md`，并在合适处复用 DL5_UNIT_005 已验证的 Tcl 托管 xsim 流程。
+可运行。遵循 `AI-work/guide/VIVADO_SIM_SOP.md`，并复用 `DL5_UNIT_005/sim/run_batch.tcl` 已验证的 Tcl 托管 xsim 流程。实际脚本为本单元的 `run_manual.tcl`，所有运行产物写入 `out/sim/`。
 
 ## 计划 DUT 与 testbench
 
 - 主 DUT：`AXI_DDR.srcs/sources_1/new/dac_output.v`
 - 支撑逻辑：提供按 `dac_dco` 顺序输出 35-bit word 的 FIFO/IP stub。
-- testbench：`sim/tb_dl1_unit_001_camera_line_sync.v`（运行前创建）。
+- testbench：`sim/tb_dl1_unit_001_camera_line_sync.v`。
+- 支撑 stub：`sim/dl1_unit_001_stubs.v`（仅仿真，用于 FIFO、BUFG、同步器和 ILA 黑盒）。
 
 ## 必测用例
 
@@ -38,4 +39,10 @@ testbench 与脚本创建完成后，从工程根目录执行：
 source AI-work/features/camera_line_sync/DL1_UNIT_001/sim/run_gui.tcl
 ```
 
-`run_gui.tcl` 将与 testbench 一并创建；在该文件存在前不启动 GUI 仿真。
+`run_gui.tcl` 已提供；在 Vivado GUI 打开工程后执行其中的 `source` 命令即可启动波形仿真。
+
+## 本次证据
+
+- batch 复现通过：`out/sim/result.txt` 为 `PASS`，测试台在 1431 ns 结束。
+- 编译/展开/运行日志：`out/sim/xvlog.log`、`out/sim/xelab.log`、`out/sim/xsim.log`，Vivado 托管日志为 `out/sim/vivado_dl1_unit001_r2.log`。
+- 未覆盖项：真实 FIFO IP 的门级时序、相机电平兼容性与板级波形；这些需要时序签核后由用户上板确认。
