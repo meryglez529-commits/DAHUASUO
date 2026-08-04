@@ -69,6 +69,14 @@ RTL、聚焦仿真和全工程 RTL elaboration 已通过。独立综合已完成
 - Evidence: `out/bitstream/run_status.txt`, `out/bitstream/runme.log`, `out/bitstream/vivado.log`, `out/bitstream/launcher_stdout.log`, and `out/bitstream/ETH_TOP_drc_routed.rpt`. The generated bitstream carries the already-recorded routed timing result (WNS +0.119 ns, WHS +0.053 ns).
 - Board programming and the active-low camera line-sync electrical/waveform acceptance remain user-executed hardware validation steps.
 
+## Live ILA diagnosis (2026-08-04, armed)
+
+- User requested a live ILA capture while reproducing the laser-mode failure.
+- Script: `ila/capture_dl5_laser_input.tcl`; launcher: `AI-work/scripts/run_vivado_ila_guarded.ps1`; source template: `AI-work/features/DL5_laser_sync/DL5_UNIT_005/ila/capture_postfix_ila.tcl`.
+- The capture loads this unit's archived `out/bitstream/ETH_TOP.ltx` and writes all CSV/VCD, Vivado logs, journals, and any D-root ILA spill archives below `out/ila/`.
+- Probe chain: `laser_sync_in` (J9 input reaching FPGA) -> `laser_pulse_ui_1` (laser timing domain) -> `adc_tri_r1` (DAC acquisition trigger). A high level on each probe is the trigger condition.
+- Result after the unexpected power-off: Hardware Manager reconnected to JTAG, but `get_hw_ilas` contained no matching ILA cores. No CSV/VCD was produced and no functional register was changed. The active FPGA image therefore does not match this unit's `out/bitstream/ETH_TOP.ltx` (most likely the volatile bitstream was lost or a non-ILA boot image was loaded). Reprogram the current `out/bitstream/ETH_TOP.bit`, then rerun this capture.
+
 ## RTL elaboration
 
 - 命令：`vivado.bat -mode batch -source synth/run_rtl_elaboration.tcl`。
