@@ -61,6 +61,14 @@ RTL、聚焦仿真和全工程 RTL elaboration 已通过。独立综合已完成
 - Evidence: `out/impl/run_status.txt`, `out/impl/ETH_TOP_timing_summary_routed.rpt`, `out/impl/ETH_TOP_utilization_placed.rpt`, `out/impl/ETH_TOP_drc_routed.rpt`, `out/impl/ETH_TOP_methodology_drc_routed.rpt`, `out/impl/runme.log`, `out/impl/vivado_route_20260804.log`, and `out/impl/vivado_route_20260804.backup.log`. Root Vivado logs were archived to `out/impl/`.
 - Hardware acceptance still requires explicit bitstream authorization and board-level oscilloscope/ILA checking.
 
+## Bitstream result (2026-08-04)
+
+- User authorized bitstream generation from the timing-closed routed implementation. `write_bitstream` completed successfully with 0 ERROR / 0 CRITICAL WARNING; no Hardware Manager, JTAG, or board action was performed.
+- Deliverables: `out/bitstream/ETH_TOP.bit` (7,966,258 bytes), `out/bitstream/ETH_TOP.bin` (7,966,140 bytes), and `out/bitstream/ETH_TOP.ltx` (969,735 bytes).
+- Reproducible command: `vivado.bat -mode batch -source AI-work/features/camera_line_sync/DL1_UNIT_001/impl/run_bitstream.tcl`.
+- Evidence: `out/bitstream/run_status.txt`, `out/bitstream/runme.log`, `out/bitstream/vivado.log`, `out/bitstream/launcher_stdout.log`, and `out/bitstream/ETH_TOP_drc_routed.rpt`. The generated bitstream carries the already-recorded routed timing result (WNS +0.119 ns, WHS +0.053 ns).
+- Board programming and the active-low camera line-sync electrical/waveform acceptance remain user-executed hardware validation steps.
+
 ## RTL elaboration
 
 - 命令：`vivado.bat -mode batch -source synth/run_rtl_elaboration.tcl`。
