@@ -42,6 +42,7 @@
     output reg          adc_tri,                 // ADC 有效采样窗口，高电平期间 ADC 链路采集/平均当前 DAC 点。
     output reg          sync_pixel_tri1,         // 外部同步/blank 信号 1，最终低有效：这里会输出 ~sync_pixel_tri1_reg。
     output              sync_pixel_tri2,         // 外部同步/触发信号 2，高有效，顶层接到 TRIGGER_OUT。
+    output              camera_line_sync,        // 相机行同步，低有效，顶层接到 TRIGGER_H。
 
     // 上游写入的 35-bit 扫描 word，以及返回给上游的 FIFO 写侧流控。
     input               para_config_wr_en,
@@ -237,6 +238,8 @@ reg         scan_state_r0;
 reg         scan_state_r1;
 reg         sync1_pixel_tri;
 reg         sync2_pixel_tri;
+reg         camera_line_active;
+reg         camera_line_end_pending;
 always@(posedge dac_dco_bufg or negedge dac_rstn)
 begin
     if(!dac_rstn) begin
@@ -248,14 +251,16 @@ begin
         DAY_DATA            <= 16'h8000;
         scan_state_r0       <= 0;
         scan_state_r1       <= 0;
+        camera_line_active  <= 1'b0;
+        camera_line_end_pending <= 1'b0;
     end
     else begin
         para_config_rd_en_r <= para_config_rd_en;
         scan_state_r0       <= scan_state;
         scan_state_r1       <= scan_state_r0;
         if(para_config_rd_en_r) begin
-            sync1_pixel_tri      <= (scan_state_r1 && ultrafast_mode_r1) ? para_config_dout[33] : 1'b0;
-            sync2_pixel_tri      <= (scan_state_r1 && ultrafast_mode_r1) ? para_config_dout[34] : 1'b0;
+            sync1_pixel_tri      <= (scan_state_r1 && ultrafast_mode_r1 && !laser_mode_en_dac) ? para_config_dout[33] : 1'b0;
+            sync2_pixel_tri      <= (scan_state_r1 && ultrafast_mode_r1 && !laser_mode_en_dac) ? para_config_dout[34] : 1'b0;
             // 激光模式：adc_tri 来自 ui_clk 域 acq 状态机的 acq_pulse_ui（单 FF 采样）
             // 普通模式：adc_tri 来自 FIFO[32]
             adc_tri             <= laser_mode_en_dac ? (scan_state_r1 ? acq_pulse_ui : 1'b0)
@@ -272,8 +277,33 @@ begin
             DAX_DATA            <= DAX_DATA;
             DAY_DATA            <= DAY_DATA;
         end
+
+        // 相机行同步在 DAC 时钟域生成，避免写侧 FIFO 积压改变对外时序。
+        // 普通/超快模式直接跟随当前 FIFO word 的 adc_tri；激光模式使用
+        // FIFO[34]/[33] 的行首/行尾标记，并把行尾释放延后一拍以覆盖最后一个 word。
+        if(!scan_state_r1) begin
+            camera_line_active      <= 1'b0;
+            camera_line_end_pending <= 1'b0;
+        end
+        else if(laser_mode_en_dac) begin
+            if(camera_line_end_pending) begin
+                camera_line_active      <= 1'b0;
+                camera_line_end_pending <= 1'b0;
+            end
+            else if(para_config_rd_en_r) begin
+                if(para_config_dout[34])
+                    camera_line_active <= 1'b1;
+                if(para_config_dout[33])
+                    camera_line_end_pending <= 1'b1;
+            end
+        end
+        else begin
+            camera_line_end_pending <= 1'b0;
+            camera_line_active <= para_config_rd_en_r ? para_config_dout[32] : 1'b0;
+        end
     end
 end
+assign camera_line_sync = ~camera_line_active;
 
 //------------------------------------------------------------------------------
 // 5. sync 原始像素标志跨到 ui_clk，并把宽度从 dac_dco 拍换成 ui_clk 拍

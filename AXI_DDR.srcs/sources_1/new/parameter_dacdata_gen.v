@@ -126,10 +126,16 @@ reg         sync_pixel_tri1;     // fifo[33]
 reg         adc_tri;             // fifo[32]
 reg [15:0]  DAX_DATA;            // fifo[31:16]
 reg [15:0]  DAY_DATA;            // fifo[15:0]
-// 激光模式下 FIFO[32]/[33]/[34] 全部清零，trigger 走独立 toggle-FF 桥
+// 激光模式下 FIFO[32] 保持为 0，ADC 触发仍走独立 toggle-FF 桥。
+// FIFO[34]/[33] 复用为相机行同步的行首/行尾标记，不改变 FIFO 宽度。
+wire        laser_line_start = laser_mode_en && (current_state == 16) &&
+                               (dacx_tk_point_cnt == 16'd0) && (dac_sample_cnt == 32'd0);
+wire        laser_line_end   = laser_mode_en && (current_state == 16) &&
+                               (dacx_tk_point_cnt == dacx_tk_point - 1'b1) &&
+                               (dac_sample_cnt == dac_sample - 1'b1);
 wire        fifo_bit32 = laser_mode_en ? 1'b0 : adc_tri;
-wire        fifo_bit33 = laser_mode_en ? 1'b0 : sync_pixel_tri1;
-wire        fifo_bit34 = laser_mode_en ? 1'b0 : sync_pixel_tri2;
+wire        fifo_bit33 = laser_mode_en ? laser_line_end : sync_pixel_tri1;
+wire        fifo_bit34 = laser_mode_en ? laser_line_start : sync_pixel_tri2;
 wire        line_start_allowed = laser_mode_en || (clk_sel == 1'b0) || TRIGGER_IN;
 assign      para_config_data = {fifo_bit34, fifo_bit33, fifo_bit32, DAX_DATA, DAY_DATA};
 
@@ -679,7 +685,7 @@ begin
         //
         // 行为：
         //   - 写 dac_sample 个 word，DAX/DAY = 当前像素坐标
-        //   - 激光模式下 FIFO[32]/[33]/[34] 在拼接 mux 处强制为 0
+        //   - 激光模式下 FIFO[32] 为 0；[34]/[33] 标记相机行首/行尾
         //   - 写完后进 State 4，由 State 4 决定是行内下一像素（回 14）还是进 12 做行尾斜坡
         //   - 复用 dac_sample_cnt（State 3/16 激光模式互斥，不冲突）
         16:

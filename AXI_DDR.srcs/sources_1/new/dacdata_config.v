@@ -80,6 +80,7 @@
     output          adc_tri,            // ADC 采集触发：每个像素 dac_sample 拍期间为 1（DL1→DL2 唯一交汇点）
     output          sync_pixel_tri1,    // 同步脉冲 1（超快模式才输出，低电平有效，已取反）
     output          sync_pixel_tri2,    // 同步脉冲 2（超快模式才输出，高电平有效，连到顶层 TRIGGER_OUT）
+    output          camera_line_sync,   // 相机行同步（低有效，连到顶层 TRIGGER_H）
     output [15:0]   DAX_DATA,           // X 轴 DAC 码值（顶层会做 65535-X 反相后输出到 AD9747）
     output [15:0]   DAY_DATA            // Y 轴 DAC 码值
     );
@@ -243,6 +244,7 @@ dac_output N2(
     .adc_tri                (adc_tri),
     .sync_pixel_tri1        (sync_pixel_tri1),
     .sync_pixel_tri2        (sync_pixel_tri2),
+    .camera_line_sync       (camera_line_sync),
     .para_config_wr_en      (para_config_wr_en),
     .para_config_data       (para_config_data),
     .para_config_prog_full  (para_config_prog_full),

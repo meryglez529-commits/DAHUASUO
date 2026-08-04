@@ -658,6 +658,7 @@ adcdata_config U5(
 //------------------------------------------------------------------------------
     wire [15:0]     DAX_DATA;
     wire [15:0]     DAY_DATA;
+    wire            camera_line_sync;
     // 板级模拟链路要求 DAC 码值取反输出，所以顶层把内部 DAX/DAY 映射成 65535-data。
     assign dac_p1d = 65535 - DAX_DATA;
     assign dac_p2d = 65535 - DAY_DATA;
@@ -703,6 +704,7 @@ dacdata_config U6(
 
     .sync_pixel_tri1    (sync_pixel_tri1),
     .sync_pixel_tri2    (sync_pixel_tri2),
+    .camera_line_sync   (camera_line_sync),
     .adc_tri            (adc_tri),
     .DAX_DATA           (DAX_DATA),
     .DAY_DATA           (DAY_DATA)
@@ -872,7 +874,7 @@ ddr3_ctrl U07(
     assign UART_TX      = 1'b1;
     assign UART_EN      = 1'b1;
     assign TRIG_CLOCK   = 1'b0;
-    assign TRIGGER_H    = 1'b0;
+    assign TRIGGER_H    = camera_line_sync;
     assign TRIG_V       = 1'b0;
     assign TRIG_BLANK   = sync_pixel_tri1;
     assign LED[7:4]     = {pll_ld,pll_ld,pll_ld,pll_ld};
