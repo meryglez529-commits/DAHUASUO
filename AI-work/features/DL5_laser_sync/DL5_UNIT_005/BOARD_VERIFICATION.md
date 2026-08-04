@@ -56,3 +56,10 @@
 ## Conclusion
 
 The board capture matches the intended fix: in DL5 laser mode, one `adc_tri` produces exactly one ADC acquisition window, then `adcdata_acq` returns to trigger-wait state instead of free-running into additional windows.
+
+## Live Retest (2026-08-04)
+
+- The project host application applied and read back the complete DL5 sequence: stop scan, disable laser, write `0x0206..0x020A = 100/20/80/30/60`, enable `0x020B = 1`, then start scan with `0x0009 = 0x1311`.
+- The historical single-probe ILA method captured `U6/laser_sync_in` in `out/ila/laser_in_check_HIT_20260804_190952.csv`. It has four rising edges spaced by 250 eth-clock samples (about 2 us), and every edge produces one `laser_sync_rise_eth` pulse.
+- The proven `capture_postfix_ila.tcl` then captured UI and ADC evidence in `out/ila/postfix_dl5_acq_*_20260804_191234.csv`: `laser_pulse_ui_1` rises every 400 UI-clock samples (about 2 us); `adc_tri_r1` rises every 100 ADC-clock samples (about 2 us).
+- `acq_en` windows are 60 ADC-clock samples each (apart from capture edges), matching `acq_time = 60`. This confirms the live chain `J9/D15 -> laser_sync_in -> CDC -> laser_pulse_ui -> adc_tri -> ADC acquisition` is functioning.
