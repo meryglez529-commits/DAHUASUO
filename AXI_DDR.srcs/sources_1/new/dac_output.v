@@ -634,11 +634,20 @@ ila_1 dl5_acq_timing_test (
 // 这个 ILA 在 dac_dco 域观察拆包后的 sync1、DAX、DAY。
 // 如果想确认 FIFO 是否按 DAC 节拍稳定输出，可以优先看这三个信号。
 //------------------------------------------------------------------------------
+  // Full-line DAX diagnostic: probe1/2 remain the DAC values actually sent
+  // to the converter.  The scalar probes reveal whether FIFO underflow or
+  // the final line-end word precedes a discontinuity.
   ila_2 dac_ila(
   .clk              (dac_dco_bufg),
-  .probe0           (sync1_pixel_tri),
+  // Probe the actual low-active TRIGGER_H source. sync_pixel_tri1/blanker
+  // was already validated on the scope and is not needed for this diagnosis.
+  .probe0           (camera_line_sync),
   .probe1           (DAX_DATA),
-  .probe2           (DAY_DATA)
+  .probe2           (DAY_DATA),
+  .probe3           (para_config_prog_empty),
+  .probe4           (para_config_rd_en),
+  .probe5           (para_config_rd_en_r),
+  .probe6           (para_config_dout[33])
   );
 
 

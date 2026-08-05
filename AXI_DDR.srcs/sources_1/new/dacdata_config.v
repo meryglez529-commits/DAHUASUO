@@ -166,6 +166,7 @@ wire [4:0]  dl5_dbg_current_state;
 wire [15:0] dl5_dbg_scan_delay_cnt;
 wire [31:0] dl5_dbg_dac_sample_cnt;
 wire [15:0] dl5_dbg_dacx_tk_point_cnt;
+wire [15:0] dl5_dbg_dacx_tb_point_cnt;
 //-------------------------------------------------------------------
 wire        para_config_wr_en;
 wire [34:0] para_config_data;
@@ -206,6 +207,7 @@ parameter_dacdata_gen N1(
     .dl5_dbg_scan_delay_cnt (dl5_dbg_scan_delay_cnt),
     .dl5_dbg_dac_sample_cnt (dl5_dbg_dac_sample_cnt),
     .dl5_dbg_dacx_tk_point_cnt(dl5_dbg_dacx_tk_point_cnt),
+    .dl5_dbg_dacx_tb_point_cnt(dl5_dbg_dacx_tb_point_cnt),
 
     .para_config_wr_en      (para_config_wr_en),
     .para_config_data       (para_config_data),
@@ -213,17 +215,38 @@ parameter_dacdata_gen N1(
     .para_config_wr_rst_busy(para_config_wr_rst_busy)
     );
 
-// DL5 debug ILA (eth_clk domain).
-// probe2 packs {laser_mode_en, scan_state, laser_sync_rise_eth, laser_toggle}.
+// DL5 DAX diagnostic ILA (eth_clk domain).
+//
+// The existing ila_1 has fixed probe widths.  For the full-line diagnostic,
+// pack the write-side progress and flow-control state without changing the
+// scan logic or FIFO data format.
+wire        dl5_dbg_line_start_accept;
+wire        dl5_dbg_tail_entry;
+wire [31:0] dl5_dbg_eth_context;
+assign dl5_dbg_line_start_accept = (dl5_dbg_current_state == 5'd14) &&
+                                   (dl5_dbg_dacx_tk_point_cnt == 16'd0) &&
+                                   laser_sync_rise_eth;
+assign dl5_dbg_tail_entry = (dl5_dbg_current_state == 5'd12);
+assign dl5_dbg_eth_context = {
+    dl5_dbg_current_state,
+    dl5_dbg_dacx_tk_point_cnt,
+    dl5_dbg_dac_sample_cnt[4:0],
+    para_config_prog_full,
+    para_config_wr_rst_busy,
+    para_config_wr_en,
+    laser_sync_rise_eth,
+    laser_mode_en,
+    scan_state
+};
 ila_1 dl5_eth_debug (
     .clk(eth_clk),
     .probe0(laser_sync_in),
-    .probe1({27'd0, dl5_dbg_current_state}),
+    .probe1(dl5_dbg_eth_context),
     .probe2({laser_mode_en, scan_state, laser_sync_rise_eth, laser_toggle}),
-    .probe3(laser_sync_rise_eth),
-    .probe4(dl5_dbg_dac_sample_cnt),
-    .probe5(dl5_dbg_scan_delay_cnt),
-    .probe6(laser_toggle)
+    .probe3(dl5_dbg_line_start_accept),
+    .probe4(para_config_data[31:0]),
+    .probe5(dl5_dbg_dacx_tb_point_cnt[15:0]),
+    .probe6(dl5_dbg_tail_entry)
 );
 //--------------------------------------------------------------------
 dac_output N2(

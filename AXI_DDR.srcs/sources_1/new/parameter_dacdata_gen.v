@@ -75,6 +75,7 @@ module parameter_dacdata_gen(
     output [15:0]   dl5_dbg_scan_delay_cnt,
     output [31:0]   dl5_dbg_dac_sample_cnt,
     output [15:0]   dl5_dbg_dacx_tk_point_cnt,
+    output [15:0]   dl5_dbg_dacx_tb_point_cnt,
 
     // 写给 dac_output 内部异步 FIFO 的 35-bit 参数流。
     output reg      para_config_wr_en,
@@ -225,6 +226,7 @@ assign dl5_dbg_current_state     = current_state;
 assign dl5_dbg_scan_delay_cnt    = scan_delay_cnt;
 assign dl5_dbg_dac_sample_cnt    = dac_sample_cnt;
 assign dl5_dbg_dacx_tk_point_cnt = dacx_tk_point_cnt;
+assign dl5_dbg_dacx_tb_point_cnt = dacx_tb_point_cnt[15:0];
 
 //------------------------------------------------------------------------------
 // 4. 主状态机：把一帧扫描拆成“线首等待 -> 像素采样 -> 线尾回扫 -> 换线/换帧”
