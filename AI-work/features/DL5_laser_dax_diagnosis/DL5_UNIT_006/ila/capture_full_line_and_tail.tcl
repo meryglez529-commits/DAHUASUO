@@ -7,6 +7,9 @@ set proj_root  [file normalize [file join $unit_root ".." ".." ".." ".."]]
 set out_ila    [file join $unit_root "out" "ila"]
 set work_dir   [file join $out_ila "vivado_hw_work"]
 set ltx_file   [file join $unit_root "out" "bitstream" "ETH_TOP_dl5_dax_diag.ltx"]
+set capture_mode [lindex $argv 0]
+if {$capture_mode eq ""} { set capture_mode "event" }
+if {$capture_mode ni {event snapshot}} { error "Usage: capture_full_line_and_tail.tcl ?event|snapshot?" }
 file mkdir $out_ila
 file mkdir $work_dir
 cd $work_dir
@@ -34,12 +37,30 @@ proc find_probe_by_glob {ila pattern} {
     return ""
 }
 
-proc export_ila {ila out_ila label ts} {
+proc export_ila {ila out_ila label tag ts} {
     set data [upload_hw_ila_data $ila]
-    set base [file join $out_ila "${label}_TRIG_${ts}"]
+    set base [file join $out_ila "${label}_${tag}_${ts}"]
     write_hw_ila_data -force -csv_file "${base}.csv" $data
     catch {write_hw_ila_data -force -vcd_file "${base}.vcd" $data}
     puts "CSV=${base}.csv"
+}
+
+proc wait_or_snapshot {label ila timeout_s} {
+    # The historical hardware scripts use the option-before-object form; this
+    # matters in Vivado 2021.1, otherwise the intended timeout can be ignored.
+    if {![catch {wait_on_hw_ila -timeout $timeout_s $ila} err]} {
+        puts "RESULT: $label=TRIG"
+        return "TRIG"
+    }
+
+    puts "WARN: $label did not satisfy its event trigger within ${timeout_s}s: $err"
+    puts "WARN: $label forcing trigger_now snapshot to preserve no-event evidence"
+    run_hw_ila -trigger_now $ila
+    if {[catch {wait_on_hw_ila -timeout 5 $ila} snapshot_err]} {
+        error "Unable to collect $label trigger_now snapshot: $snapshot_err"
+    }
+    puts "RESULT: $label=NOTRIG"
+    return "NOTRIG"
 }
 
 if {![file exists $ltx_file]} { error "Missing paired LTX: $ltx_file" }
@@ -48,6 +69,7 @@ puts "PROJECT_ROOT=$proj_root"
 puts "HW_WORK_DIR=$work_dir"
 puts "LTX=$ltx_file"
 puts "SCENARIO=continuous laser profile, 16 pixels/line"
+puts "CAPTURE_MODE=$capture_mode"
 
 open_hw_manager
 catch {disconnect_hw_server}
@@ -69,7 +91,10 @@ if {$dac_ila eq ""} { error "DAC/camera ILA not found" }
 if {$acq_ila eq ""} { error "Acquisition-timing ILA not found" }
 
 set eth_trig [find_probe_by_glob $eth_ila "*dl5_dbg_line_start_accept*"]
-set dac_trig [find_probe_by_name $dac_ila {U6/N2/para_config_dout[33]}]
+# Vivado represents this one-bit ILA probe as a bus parent on the board, while
+# the paired LTX lists its one-bit subnet as para_config_dout[33].  Match the
+# unique parent to avoid coupling the board capture to that display detail.
+set dac_trig [find_probe_by_glob $dac_ila "*para_config_dout*"]
 set acq_trig [find_probe_by_glob $acq_ila "*laser_pulse_ui*"]
 if {$eth_trig eq ""} { error "ETH line-start trigger probe not found" }
 if {$dac_trig eq ""} { error "DAC line-end marker probe not found" }
@@ -88,16 +113,28 @@ set_property TRIGGER_COMPARE_VALUE "eq1'b1" $acq_trig
 puts "ETH_ILA=$eth_ila TRIGGER=[get_property NAME $eth_trig]"
 puts "DAC_ILA=$dac_ila TRIGGER=[get_property NAME $dac_trig]"
 puts "ACQ_ILA=$acq_ila TRIGGER=[get_property NAME $acq_trig]"
+
+if {$capture_mode eq "snapshot"} {
+    # Use this bounded path when Hardware Manager's conditional wait command
+    # is unreliable. The native windows still cover a full laser line (ETH),
+    # its tail/camera interval (DAC), and one acquisition pulse (UI).
+    foreach ila [list $eth_ila $dac_ila $acq_ila] { run_hw_ila -trigger_now $ila }
+    foreach {label ila} [list eth_full_line $eth_ila dac_tail_camera $dac_ila acq_timing $acq_ila] {
+        wait_on_hw_ila $ila
+        export_ila $ila $out_ila $label NOW $ts
+    }
+    close_hw_manager
+    exit 0
+}
+
 run_hw_ila $eth_ila
 run_hw_ila $dac_ila
 run_hw_ila $acq_ila
 puts "ARMED: all three ILAs; waiting for the next laser scan line"
 
 foreach {label ila} [list eth_full_line $eth_ila dac_tail_camera $dac_ila acq_timing $acq_ila] {
-    if {[catch {wait_on_hw_ila $ila -timeout 20} err]} {
-        error "Capture timeout for $label: $err"
-    }
-    export_ila $ila $out_ila $label $ts
+    set tag [wait_or_snapshot $label $ila 8]
+    export_ila $ila $out_ila $label $tag $ts
 }
 close_hw_manager
 exit 0

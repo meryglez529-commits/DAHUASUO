@@ -14,7 +14,7 @@
 
 ## 当前状态
 
-已完成资源优化诊断 ILA bitstream：WNS=+0.105 ns、WHS=+0.051 ns、BRAM=414.5/445（93.15%，相对 404.5 基线增加约 2.5%），DRC 0 error/0 critical warning。`out/bitstream/` 中的 bit/LTX 已包含完整行诊断、采集时序和实际低有效相机行同步；等待用户下载后上板抓取。
+已完成资源优化诊断 ILA bitstream 及板级抓取：WNS=+0.105 ns、WHS=+0.051 ns、BRAM=414.5/445（93.15%，相对 404.5 基线增加约 2.5%），DRC 0 error/0 critical warning。最终 16x16 条件触发证据已导出至 `out/ila/`，结论见 `BOARD_VERIFICATION.md`：16 个写侧像素无丢失；行首恢复 FIFO 契约存在问题；本次码流无额外尖峰；相机行同步未拉低。
 
 ## 实施顺序
 
@@ -44,8 +44,10 @@
 - 早期调试脚本失败记录：`out/impl/build_diagnostic_bitstream_retry4.log`（bitgen 已完成，但旧脚本未重新打开 routed checkpoint 即生成报告）；已由当前脚本修复。
 - 可下载匹配对：`out/bitstream/ETH_TOP_dl5_dax_diag.bit`、`out/bitstream/ETH_TOP_dl5_dax_diag.ltx`。
 - 上板抓取：`ila/capture_full_line_and_tail.tcl`，必须通过 `AI-work/scripts/run_vivado_ila_guarded.ps1` 运行；采集 ILA 的深度为 1024，触发位置为 512。
+- 2026-08-05 板级结论与逐样本证据：`BOARD_VERIFICATION.md`；最终条件抓取三份 CSV 的时间戳为 `20260805_135750`。
 
 ## 产物边界
 
 - 项目托管的 OOC/综合/实现运行会在只读的 `AXI_DDR.runs/` 产生 `.jou`，其可审查副本与最终报告已存入本单元 `out/impl/`。
 - 项目根目录的 `vivado.log`、`vivado_pid18956.str` 被用户已打开的 Vivado GUI（PID 18956）锁定，无法安全移动；未关闭 GUI，未删除文件。本单元不依赖它们作为验证证据。
+- 最终 spill 扫描同时列出用户 GUI 管理的 `.Xil/Vivado-18956-*/hw_ila_data_*` 与 `AXI_DDR.hw/hw_1/wave/` 历史工作目录；它们未被移动或删除。受控批处理启动器每次均报告 `NEW_DROOT_SPILL_COUNT=0`，本次 CSV/VCD/批处理日志均在本单元 `out/ila/`。
