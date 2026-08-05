@@ -6,6 +6,20 @@ AXI_DDR.ip_user_files/
 AXI_DDR.runs/
 AXI_DDR.sim/
 AXI_DDR.tmp/
+
+# Vivado-generated support files for the dedicated DL5 diagnostic ILA.
+# The reproducible source of this core is ila_dl5_eth.xci.
+AXI_DDR.srcs/sources_1/ip/ila_dl5_eth/doc/
+AXI_DDR.srcs/sources_1/ip/ila_dl5_eth/hdl/
+AXI_DDR.srcs/sources_1/ip/ila_dl5_eth/ila_v6_2/
+AXI_DDR.srcs/sources_1/ip/ila_dl5_eth/sim/
+AXI_DDR.srcs/sources_1/ip/ila_dl5_eth/synth/
+AXI_DDR.srcs/sources_1/ip/ila_dl5_eth/*.veo
+AXI_DDR.srcs/sources_1/ip/ila_dl5_eth/*.xml
+AXI_DDR.srcs/sources_1/ip/ila_dl5_eth/*_ooc.xdc
+AXI_DDR.srcs/sources_1/ip/ila_dl5_eth/*.dcp
+AXI_DDR.srcs/sources_1/ip/ila_dl5_eth/*_sim_netlist.*
+AXI_DDR.srcs/sources_1/ip/ila_dl5_eth/*_stub.*
 *.jou
 *.log
 *.backup.jou

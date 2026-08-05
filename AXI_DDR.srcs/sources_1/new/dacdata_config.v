@@ -238,7 +238,7 @@ assign dl5_dbg_eth_context = {
     laser_mode_en,
     scan_state
 };
-ila_1 dl5_eth_debug (
+ila_dl5_eth dl5_eth_debug (
     .clk(eth_clk),
     .probe0(laser_sync_in),
     .probe1(dl5_dbg_eth_context),
