@@ -2,7 +2,7 @@
 
 ## Current status
 
-Completed and ready for board validation. The laser-only physical-flyback acknowledgement was implemented, behavioral regression passed, and the final repaired routed design meets timing. Normal and ultrafast paths were not altered.
+Completed. The laser-only physical-flyback acknowledgement passed behavioral regression, timing closure, and board ILA validation. Normal and ultrafast paths were not altered.
 
 ## 执行顺序
 

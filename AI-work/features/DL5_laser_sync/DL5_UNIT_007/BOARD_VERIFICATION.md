@@ -1,5 +1,18 @@
 # DL5_UNIT_007：上板验证计划
 
+## 2026-08-05 实测结果：通过
+
+已使用本单元的 qualified `.bit/.ltx`、工程 host-app 和受控 ILA 脚本完成激光模式验证。配置为 16×16、`dac_sample=50`、行首恢复 5 us、X 回扫 1 us、扫描延时 800 ns、采集延时/时间均为 20 ns。
+
+- 物理尾点确认：DAC ILA 在 FIFO[32] 尾点 marker 上触发；`laser_tail_done_toggle_dac` 随该最终回扫字的 DAC 时钟边沿翻转。ILA 的寄存器采样显示为相邻一条记录，是同一时钟边沿的非阻塞更新可见性。
+- 恢复下限：ETH ILA 中 `tail_done_sync` 于样本 218 改变，样本 219 进入 State 18；下一次 `dl5_dbg_line_start_accept` 在样本 844，间隔恰为 `(844-219)×8 ns = 5.000 us`。期间到达的两次 laser 输入（样本 343、593）都在 State 18，未被接收。
+- 相机同步：`camera_line_sync` 已在激光模式低有效；完整行窗口为 DAC ILA 样本 1474..3023，共 1550 个 20 ns DAC 时钟，即 31.000 us，符合 16 个、2 us 间隔的激光像素行覆盖要求。
+- 采集：UI ILA 中 delay 和 high 两段计数均为 0..3，各为 4 个 5 ns 时钟，实测均为 20 ns。
+
+原始证据：`out/ila/eth_recovery_TRIG_20260805_184848.csv`、`out/ila/dac_tail_camera_TRIG_20260805_184848.csv`、`out/ila/acq_timing_TRIG_20260805_184848.csv`；受控启动记录 `out/hw_debug/dl5_recovery_ack_20260805_184845.log`，且 spill manifest 为 `NEW_DROOT_SPILL_COUNT=0`。
+
+产物边界说明：全局 spill 扫描仍列出项目根的 `vivado.jou`、`vivado.log`、`vivado_pid18956.str` 以及 `AXI_DDR.runs/*/vivado.jou`；它们属于已打开的 Vivado GUI/项目托管运行，未被本次受控 ILA 启动器创建或改动，故未移动或删除。
+
 ## 已具备的交付物
 
 - 下载文件：`out/bitstream/ETH_TOP_dl5_recovery_ack_qualified.bit`
