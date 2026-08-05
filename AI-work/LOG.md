@@ -1,5 +1,7 @@
 # AI-work Log
 
+> 2026-08-05 | DL1_UNIT_002 scope CSV review: Reviewed user exports `F:/smart/csvwave/0909010011.csv` (CH1) and `0909010013.csv` (CH2). CH1 measures a stable 2 µs-period / 1 µs-high laser waveform. Conditional on the user's CH2=DAX probe mapping, CH2 shows the expected 16-code, 2 µs-per-code X line, ~1 µs flyback, and 36 µs line period. The files carry no physical-probe labels and were exported 18 s apart, so they cannot establish laser-to-DAC delay or camera-sync alignment; recorded this limitation in `SCOPE_REVIEW.md`.
+
 > 2026-08-05 | DL1_UNIT_002 board ILA verification: Programmed repair bitstream, applied/read back the proven 16×16 laser profile (`dac_sample=50`, DL5=`100/20/80/30/60`) and started scan. Guarded ILA captured full write-side line, DAC marker/camera alignment and acquisition timing with zero D-root spill. FIFO[34]/[33] aligned with first/last DAX words; camera low window covered the full valid line and released on the first return code. Acquisition delay/width measured 600 ns/1.2 µs as configured. Evidence: `features/camera_line_sync/DL1_UNIT_002/BOARD_VERIFICATION.md`.
 
 > 2026-08-05 | DL1_UNIT_002 implementation: After the focused RTL simulation PASS, rebuilt without changing FIFO/IP/XCI/XDC. `write_bitstream` completed successfully; formal timing WNS=+0.202 ns/WHS=+0.048 ns and all user constraints met. Archived the matched `ETH_TOP_camera_marker_fix.bit/.ltx`, reports, and guarded ILA capture script. Board-level laser capture remains pending user programming and start.
