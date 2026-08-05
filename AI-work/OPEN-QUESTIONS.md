@@ -25,6 +25,7 @@
 | Q19 | 2026-05-27 | DL5_UNIT_001 | `laser_sync_in` 的实际 FPGA 引脚号、bank 电压和 XDC IOSTANDARD 怎么定？ | resolved | 2026-06-02 决定复用 `TRIGGER_IN`/D15/LVCMOS33：普通/超快模式保持 TRIGGER_IN，激光模式下同一物理输入作为 laser_sync_in |
 | Q20 | 2026-06-03 | DL5-board-debug | host-app 跑普通模式时 DAC 无波形（即便 bitstream/RTL 正常）。为何？ | resolved | host-app `ScanConfig.to_registers()` 漏写 `0x0005/0x0006/0x0007/0x000F`，导致写 `0x0006` 触发的 `dacx_step` 除法器从不重算，DAX 恒 0x8000。已修 `scan.py`+`modes.py` 补全几何寄存器（固定内置默认值），21 单测过，上板验证 DAC 出波形。详见 `host-app/HOST_APP_L0_L9_READINESS.md` 与 `DL5_UNIT_003/BOARD_DEBUG_GUIDE.md ★ 实录` |
 | Q21 | 2026-06-03 | DL5-board-debug | 激光模式 blanker 无输出，D15 连接器有 500kHz 信号但 FPGA 内部 `laser_sync_in` 恒 0。RTL/约束/板级哪一层？ | resolved | 顶层 `ila_5` 直抓 `TRIGGER_IN_IBUF`（IBUF 输出）实测 8192 采样全 0，同时内部注入对照脉冲正常 → 铁证锁定 D15 球脚之前板级物理层（约束/bank 供电均已排除）。用户修复硬件后复测 `TRIGGER_IN_IBUF` = 500kHz/20%/2µs，端到端 blanker 输出正常 |
+| Q22 | 2026-08-05 | DL1_UNIT_002 | 激光模式的 `dacx_recovery_time` 是否必须从物理 X 回扫完成后重新起算，并禁止在其完成前响应下一行首个 laser？ | open（需求已确认，待修 RTL） | 用户确认：回扫=1 µs、恢复=5 µs 时，回扫结束到首个 laser 响应必须 ≥5 µs。现 RTL State2 仅写两个锚点且在 eth_clk 域计数，计时与 DAC 回扫重叠；ILA 显示末 marker→下行首 marker≈5 µs（含回扫），已确认为缺陷。 |
 
 ## 处理约定
 

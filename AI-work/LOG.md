@@ -1,5 +1,7 @@
 # AI-work Log
 
+> 2026-08-05 | DL1_UNIT_002 confirmed laser recovery defect: User clarified the required semantics: with 1 µs X flyback and 5 µs recovery configured, the board must not respond to the first next-line laser until at least 5 µs after flyback completes. Source and ILA/scope evidence show the current laser State2 counter runs concurrently with FIFO/DAC flyback and then accepts laser too early; this is a confirmed RTL defect, recorded as Q22. No RTL changed in this turn.
+
 > 2026-08-05 | DL1_UNIT_002 laser recovery semantics: Source review corrected the earlier shorthand “line-head recovery 5 µs”. Register `dacx_recovery_time=5` is intended to be an additional 5 µs recovery after flyback in normal mode, but laser State2 writes only two anchor FIFO words and counts 250 `eth_clk` cycles (=2 µs). Board ILA measures 5.02 µs from line-end marker to next line-start marker, including ~1 µs flyback and ~4 µs post-flyback hold for this laser phase. This is an implementation semantic deviation to assess separately; no RTL changed.
 
 > 2026-08-05 | DL1_UNIT_002 scope CSV review: Reviewed user exports `F:/smart/csvwave/0909010011.csv` (CH1) and `0909010013.csv` (CH2). CH1 measures a stable 2 µs-period / 1 µs-high laser waveform. Conditional on the user's CH2=DAX probe mapping, CH2 shows the expected 16-code, 2 µs-per-code X line, ~1 µs flyback, and 36 µs line period. The files carry no physical-probe labels and were exported 18 s apart, so they cannot establish laser-to-DAC delay or camera-sync alignment; recorded this limitation in `SCOPE_REVIEW.md`.
