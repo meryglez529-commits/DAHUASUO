@@ -1,5 +1,7 @@
 # AI-work Log
 
+> 2026-08-05 | DL1_UNIT_002 step-count and latency review: Confirmed that a 16-pixel X line has 16 stable DAC levels but only 15 visible inter-pixel transitions; x0 equals the post-flyback start code, so its transition is hidden in the recovery plateau. User's live-scope laser-to-visible-DAX delay of ~1.24 µs is consistent with `scan_delay=100` (=800 ns from synchronized laser acceptance to State16 write) plus the fixed CDC/FIFO/DAC-output chain (~0.43 µs). The delay register is not a direct physical output-delay setting.
+
 > 2026-08-05 | DL1_UNIT_002 confirmed laser recovery defect: User clarified the required semantics: with 1 µs X flyback and 5 µs recovery configured, the board must not respond to the first next-line laser until at least 5 µs after flyback completes. Source and ILA/scope evidence show the current laser State2 counter runs concurrently with FIFO/DAC flyback and then accepts laser too early; this is a confirmed RTL defect, recorded as Q22. No RTL changed in this turn.
 
 > 2026-08-05 | DL1_UNIT_002 laser recovery semantics: Source review corrected the earlier shorthand “line-head recovery 5 µs”. Register `dacx_recovery_time=5` is intended to be an additional 5 µs recovery after flyback in normal mode, but laser State2 writes only two anchor FIFO words and counts 250 `eth_clk` cycles (=2 µs). Board ILA measures 5.02 µs from line-end marker to next line-start marker, including ~1 µs flyback and ~4 µs post-flyback hold for this laser phase. This is an implementation semantic deviation to assess separately; no RTL changed.
