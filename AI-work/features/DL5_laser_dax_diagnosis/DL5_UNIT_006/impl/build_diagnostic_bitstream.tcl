@@ -14,12 +14,13 @@ puts "OUT_IMPL=$out_impl"
 
 open_project [file join $proj_root "AXI_DDR.xpr"]
 
-# This is a debug-IP-only configuration change.  Both depths are required to
-# cover a full 16-pixel / 2-us laser line in their native clock domains.
-foreach ip_name {ila_1 ila_2} {
+# This is a debug-IP-only configuration change. The dedicated eth ILA and the
+# DAC ILA need 4096 samples. ila_1 remains 1024 because its UI-only acquisition
+# timing instance needs one local window rather than an entire laser line.
+foreach {ip_name depth} {ila_1 1024 ila_2 4096 ila_dl5_eth 4096} {
     set ip [get_ips $ip_name]
     if {$ip eq ""} { error "Missing IP: $ip_name" }
-    set_property CONFIG.C_DATA_DEPTH 4096 $ip
+    set_property CONFIG.C_DATA_DEPTH $depth $ip
     if {$ip_name eq "ila_2"} {
         # ila_2 had widths stored for probe3..6 but only three active ports.
         set_property CONFIG.C_NUM_OF_PROBES 7 $ip
@@ -34,7 +35,7 @@ foreach ip_name {ila_1 ila_2} {
 # The project consumes these ILA cores through their OOC synthesis checkpoints.
 # Rebuild those checkpoints before launching the top-level run so it cannot
 # resolve the obsolete three-probe ila_2 or a missing post-reset ila_1 stub.
-set diag_ip_runs {ila_1_synth_1 ila_2_synth_1}
+set diag_ip_runs {ila_1_synth_1 ila_2_synth_1 ila_dl5_eth_synth_1}
 foreach run_name $diag_ip_runs {
     if {[get_runs -quiet $run_name] eq ""} { error "Missing IP run: $run_name" }
     reset_run $run_name

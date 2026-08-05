@@ -8,13 +8,13 @@
   delivery because it did not directly record `camera_line_sync`. `ila_2/probe0`
   now observes it in the DAC clock domain, replacing previously validated blanker.
 - This is debug-only; no business logic, register mapping, FIFO format/depth, or IO
-  constraint changes. The final full implementation and post-route repair qualified.
+  constraint changes. The resource-optimized final implementation qualified.
 
 # DL5_UNIT_006：实施记录
 
 ## 当前状态
 
-已完成诊断 ILA bitstream：最终后优化 WNS=+0.189 ns、WHS=+0.053 ns，DRC 0 error/0 critical warning。`out/bitstream/` 中的 bit/LTX 已包含完整行诊断、采集时序和实际低有效相机行同步；等待用户下载后上板抓取。
+已完成资源优化诊断 ILA bitstream：WNS=+0.105 ns、WHS=+0.051 ns、BRAM=414.5/445（93.15%，相对 404.5 基线增加约 2.5%），DRC 0 error/0 critical warning。`out/bitstream/` 中的 bit/LTX 已包含完整行诊断、采集时序和实际低有效相机行同步；等待用户下载后上板抓取。
 
 ## 实施顺序
 
@@ -38,8 +38,14 @@
 
 ## 最终构建证据（2026-08-05）
 
-- 初始全量实现：`out/impl/build_diagnostic_bitstream_final.log`；bitgen 成功但 WNS=-0.152 ns，未交付。
-- 最终后优化：`out/impl/post_route_timing_repair_final.log`，`POST_ROUTE_WNS=0.189`、`POST_ROUTE_WHS=0.053`。
-- 时序/DRC：`out/impl/post_route_repair_timing_summary.rpt`、`out/impl/post_route_repair_drc.rpt`。
+- 高 BRAM 版：`out/impl/build_diagnostic_bitstream_final.log`；虽经后优化通过时序，但 BRAM=429.5/445，不交付。
+- 最终资源优化版：`out/impl/build_diagnostic_bitstream_resource_optimized.log`；WNS=+0.105 ns、WHS=+0.051 ns、BRAM=414.5/445。
+- 时序/DRC：`out/impl/timing_summary.rpt`、`out/impl/drc.rpt`。
+- 早期调试脚本失败记录：`out/impl/build_diagnostic_bitstream_retry4.log`（bitgen 已完成，但旧脚本未重新打开 routed checkpoint 即生成报告）；已由当前脚本修复。
 - 可下载匹配对：`out/bitstream/ETH_TOP_dl5_dax_diag.bit`、`out/bitstream/ETH_TOP_dl5_dax_diag.ltx`。
-- 上板抓取：`ila/capture_full_line_and_tail.tcl`，必须通过 `AI-work/scripts/run_vivado_ila_guarded.ps1` 运行。
+- 上板抓取：`ila/capture_full_line_and_tail.tcl`，必须通过 `AI-work/scripts/run_vivado_ila_guarded.ps1` 运行；采集 ILA 的深度为 1024，触发位置为 512。
+
+## 产物边界
+
+- 项目托管的 OOC/综合/实现运行会在只读的 `AXI_DDR.runs/` 产生 `.jou`，其可审查副本与最终报告已存入本单元 `out/impl/`。
+- 项目根目录的 `vivado.log`、`vivado_pid18956.str` 被用户已打开的 Vivado GUI（PID 18956）锁定，无法安全移动；未关闭 GUI，未删除文件。本单元不依赖它们作为验证证据。

@@ -75,12 +75,12 @@ if {$eth_trig eq ""} { error "ETH line-start trigger probe not found" }
 if {$dac_trig eq ""} { error "DAC line-end marker probe not found" }
 if {$acq_trig eq ""} { error "Acquisition laser-pulse trigger probe not found" }
 
-foreach ila [list $eth_ila $dac_ila $acq_ila] {
-    catch {set_property CONTROL.DATA_DEPTH 4096 $ila}
-}
+set_property CONTROL.DATA_DEPTH 4096 $eth_ila
+set_property CONTROL.DATA_DEPTH 4096 $dac_ila
+set_property CONTROL.DATA_DEPTH 1024 $acq_ila
 set_property CONTROL.TRIGGER_POSITION 0    $eth_ila
 set_property CONTROL.TRIGGER_POSITION 3072 $dac_ila
-set_property CONTROL.TRIGGER_POSITION 1024 $acq_ila
+set_property CONTROL.TRIGGER_POSITION 512  $acq_ila
 set_property TRIGGER_COMPARE_VALUE "eq1'b1" $eth_trig
 set_property TRIGGER_COMPARE_VALUE "eq1'b1" $dac_trig
 set_property TRIGGER_COMPARE_VALUE "eq1'b1" $acq_trig
