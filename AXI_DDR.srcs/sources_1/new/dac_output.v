@@ -55,6 +55,7 @@
     input               laser_toggle,            // eth_clk 域 toggle，由 parameter_dacdata_gen 输出
     input       [15:0]  blanker_delay_time,      // ui_clk 拍数（5ns 步进）
     input       [15:0]  blanker_time,            // ui_clk 拍数（5ns 步进）
+    output reg          laser_tail_done_toggle_dac,
     input       [15:0]  acq_data_delay_time,     // 上位机配 dac_dco 拍数（20ns 步进），内部 <<2 转 ui_clk 拍
     input       [15:0]  acq_time                 // 同上
     );
@@ -253,6 +254,7 @@ begin
         scan_state_r1       <= 0;
         camera_line_active  <= 1'b0;
         camera_line_end_pending <= 1'b0;
+        laser_tail_done_toggle_dac <= 1'b0;
     end
     else begin
         para_config_rd_en_r <= para_config_rd_en;
@@ -281,6 +283,9 @@ begin
         // 相机行同步在 DAC 时钟域生成，避免写侧 FIFO 积压改变对外时序。
         // 普通/超快模式直接跟随当前 FIFO word 的 adc_tri；激光模式使用
         // FIFO[34]/[33] 的行首/行尾标记，并把行尾释放延后一拍以覆盖最后一个 word。
+        if(laser_mode_en_dac && para_config_rd_en_r && para_config_dout[32])
+            laser_tail_done_toggle_dac <= ~laser_tail_done_toggle_dac;
+
         if(!scan_state_r1) begin
             camera_line_active      <= 1'b0;
             camera_line_end_pending <= 1'b0;
@@ -644,12 +649,12 @@ ila_1 dl5_acq_timing_test (
   // was already validated on the scope and is not needed for this diagnosis.
   .probe0           (camera_line_sync),
   .probe1           (DAX_DATA),
-  .probe2           ({12'd0, laser_mode_en_dac, camera_line_active,
+  .probe2           ({10'd0, laser_tail_done_toggle_dac, para_config_dout[32], laser_mode_en_dac, camera_line_active,
                       para_config_dout[34], para_config_dout[33]}),
   .probe3           (para_config_prog_empty),
   .probe4           (para_config_rd_en),
   .probe5           (para_config_rd_en_r),
-  .probe6           (para_config_dout[33])
+  .probe6           (para_config_dout[32])
   );
 
 

@@ -167,6 +167,9 @@ wire [15:0] dl5_dbg_scan_delay_cnt;
 wire [31:0] dl5_dbg_dac_sample_cnt;
 wire [15:0] dl5_dbg_dacx_tk_point_cnt;
 wire [15:0] dl5_dbg_dacx_tb_point_cnt;
+wire        dl5_dbg_tail_done_sync;
+wire        dl5_dbg_tail_done_seen;
+wire        laser_tail_done_toggle_dac;
 //-------------------------------------------------------------------
 wire        para_config_wr_en;
 wire [34:0] para_config_data;
@@ -203,11 +206,14 @@ parameter_dacdata_gen N1(
     .laser_sync_rise_eth    (laser_sync_rise_eth),
     .scan_delay_time        (scan_delay_time),
     .laser_toggle           (laser_toggle),
+    .laser_tail_done_toggle_dac(laser_tail_done_toggle_dac),
     .dl5_dbg_current_state  (dl5_dbg_current_state),
     .dl5_dbg_scan_delay_cnt (dl5_dbg_scan_delay_cnt),
     .dl5_dbg_dac_sample_cnt (dl5_dbg_dac_sample_cnt),
     .dl5_dbg_dacx_tk_point_cnt(dl5_dbg_dacx_tk_point_cnt),
     .dl5_dbg_dacx_tb_point_cnt(dl5_dbg_dacx_tb_point_cnt),
+    .dl5_dbg_tail_done_sync (dl5_dbg_tail_done_sync),
+    .dl5_dbg_tail_done_seen (dl5_dbg_tail_done_seen),
 
     .para_config_wr_en      (para_config_wr_en),
     .para_config_data       (para_config_data),
@@ -242,7 +248,7 @@ ila_dl5_eth dl5_eth_debug (
     .clk(eth_clk),
     .probe0(laser_sync_in),
     .probe1(dl5_dbg_eth_context),
-    .probe2({laser_mode_en, scan_state, laser_sync_rise_eth, laser_toggle}),
+    .probe2({laser_mode_en, dl5_dbg_tail_done_sync, dl5_dbg_tail_done_seen, laser_toggle}),
     .probe3(dl5_dbg_line_start_accept),
     .probe4(para_config_data[31:0]),
     .probe5(dl5_dbg_dacx_tb_point_cnt[15:0]),
@@ -276,6 +282,7 @@ dac_output N2(
     // DL5 激光同步模式
     .laser_mode_en          (laser_mode_en),
     .laser_toggle           (laser_toggle),
+    .laser_tail_done_toggle_dac(laser_tail_done_toggle_dac),
     .blanker_delay_time     (blanker_delay_time),
     .blanker_time           (blanker_time),
     .acq_data_delay_time    (acq_data_delay_time),

@@ -71,11 +71,14 @@ module parameter_dacdata_gen(
     input           laser_sync_rise_eth,        // eth_clk 域，已 CDC + 边沿检测的 laser 脉冲
     input   [15:0]  scan_delay_time,            // 8ns 步进 (eth_clk 周期)
     output reg      laser_toggle,               // 给 dac_output 做触发独立 CDC 的 toggle 信号
+    input           laser_tail_done_toggle_dac,
     output [4:0]    dl5_dbg_current_state,
     output [15:0]   dl5_dbg_scan_delay_cnt,
     output [31:0]   dl5_dbg_dac_sample_cnt,
     output [15:0]   dl5_dbg_dacx_tk_point_cnt,
     output [15:0]   dl5_dbg_dacx_tb_point_cnt,
+    output          dl5_dbg_tail_done_sync,
+    output          dl5_dbg_tail_done_seen,
 
     // 写给 dac_output 内部异步 FIFO 的 35-bit 参数流。
     output reg      para_config_wr_en,
@@ -95,10 +98,14 @@ module parameter_dacdata_gen(
 //------------------------------------------------------------------------------
 wire[31:0] dacx_tb_point_reg;
 assign      dacx_tb_point_reg = (dacx_recovery_time<<5)+(dacx_recovery_time<<4)+(dacx_recovery_time<<1);
+wire[31:0] laser_recovery_eth_point_reg;
+assign      laser_recovery_eth_point_reg = (dacx_recovery_time<<6)+(dacx_recovery_time<<5)+
+                                            (dacx_recovery_time<<4)+(dacx_recovery_time<<3)+
+                                            (dacx_recovery_time<<2)+dacx_recovery_time;
 wire[35:0]ultrafast_line_rec_reg;
 assign      ultrafast_line_rec_reg = (ultrafast_line_rec<<5)+(ultrafast_line_rec<<4)+(ultrafast_line_rec<<1);
 
-reg [4:0]   current_state;   // DL5 扩到 5 位以容纳 State 14/15/16
+reg [4:0]   current_state;   // DL5 扩到 5 位以容纳 State 14..18
 
 reg [35:0]  dacx_tb_point_cnt;
 reg [31:0]  dac_sample_cnt;
@@ -125,13 +132,16 @@ reg [63:0]  day_level;
 reg         sync_pixel_tri2;     // fifo[34]
 reg         sync_pixel_tri1;     // fifo[33]
 reg         adc_tri;             // fifo[32]
+reg         laser_tail_end_marker;
 reg [15:0]  DAX_DATA;            // fifo[31:16]
 reg [15:0]  DAY_DATA;            // fifo[15:0]
-// 激光模式下 FIFO[32] 保持为 0，ADC 触发仍走独立 toggle-FF 桥。
+// In laser mode FIFO[32] is normally 0, except for the one final-flyback
+// marker word used to acknowledge that the physical DAC has reached the tail.
+// ADC triggering still uses the independent toggle-FF bridge.
 // FIFO[34]/[33] 复用为相机行同步的行首/行尾标记，不改变 FIFO 宽度。
 // bit33/34 必须和 DAX/DAY、para_config_wr_en 使用同一寄存器流水级；
 // 不能按当前 State16 计数器组合生成，否则会与实际 FIFO 写入错开一拍。
-wire        fifo_bit32 = laser_mode_en ? 1'b0 : adc_tri;
+wire        fifo_bit32 = laser_mode_en ? laser_tail_end_marker : adc_tri;
 wire        fifo_bit33 = sync_pixel_tri1;
 wire        fifo_bit34 = sync_pixel_tri2;
 wire        line_start_allowed = laser_mode_en || (clk_sel == 1'b0) || TRIGGER_IN;
@@ -214,16 +224,33 @@ reg [35:0]  dacx_tb_point;
 // DL5 激光模式新增计数器
 reg [15:0]  scan_delay_cnt;
 
-// DL5_UNIT_003：State 2 在激光模式下只写 2 个 dacx_strat word，
-// 之后纯计时不写，让读侧消化 State 13 留下的 FIFO 积压。
-// 写满 2 次后停止写，dacx_tb_point_cnt 仍跑满（行间隔不变）。
+// In laser mode State 2 writes only two start anchors.  DL5_UNIT_007 then
+// waits for the physical final-flyback acknowledgement (State 17) and counts
+// the configured recovery interval in eth_clk time (State 18).
 reg [1:0]   s2_write_cnt;
+reg [31:0]  laser_recovery_eth_cnt;
+reg         laser_recovery_need_ack;
+reg         laser_tail_done_seen;
+(* ASYNC_REG = "TRUE" *) reg laser_tail_done_e0;
+(* ASYNC_REG = "TRUE" *) reg laser_tail_done_e1;
+(* ASYNC_REG = "TRUE" *) reg laser_tail_done_e2;
 
 assign dl5_dbg_current_state     = current_state;
 assign dl5_dbg_scan_delay_cnt    = scan_delay_cnt;
 assign dl5_dbg_dac_sample_cnt    = dac_sample_cnt;
 assign dl5_dbg_dacx_tk_point_cnt = dacx_tk_point_cnt;
 assign dl5_dbg_dacx_tb_point_cnt = dacx_tb_point_cnt[15:0];
+assign dl5_dbg_tail_done_sync     = laser_tail_done_e2;
+assign dl5_dbg_tail_done_seen     = laser_tail_done_seen;
+
+always@(posedge ui_clk or negedge rstn)
+begin
+    if(!rstn)
+        {laser_tail_done_e2, laser_tail_done_e1, laser_tail_done_e0} <= 3'b000;
+    else
+        {laser_tail_done_e2, laser_tail_done_e1, laser_tail_done_e0} <=
+            {laser_tail_done_e1, laser_tail_done_e0, laser_tail_done_toggle_dac};
+end
 
 //------------------------------------------------------------------------------
 // 4. 主状态机：把一帧扫描拆成“线首等待 -> 像素采样 -> 线尾回扫 -> 换线/换帧”
@@ -277,6 +304,10 @@ begin
         scan_delay_cnt      <= 16'd0;
         laser_toggle        <= 1'b0;
         s2_write_cnt        <= 2'd0;
+        laser_recovery_eth_cnt <= 32'd0;
+        laser_recovery_need_ack <= 1'b0;
+        laser_tail_done_seen <= 1'b0;
+        laser_tail_end_marker <= 1'b0;
     end
     else
         case (current_state)
@@ -344,22 +375,27 @@ begin
                     adc_tri             <= 1'b0;
                     sync_pixel_tri1      <= 1'b0;
                     sync_pixel_tri2      <= 1'b0;
+                    laser_tail_end_marker <= 1'b0;
                     DAX_DATA            <= dax_level[63:48];
                     DAY_DATA            <= day_level[63:48];
                     s2_write_cnt        <= s2_write_cnt + 1'b1;
                 end
                 else begin
                     para_config_wr_en   <= 1'b0;
+                    laser_tail_end_marker <= 1'b0;
                 end
-                // 计时器仍跑满 dacx_tb_point 拍（行间隔不变）
-                if (dacx_tb_point_cnt < dacx_tb_point - 1) begin
-                    dacx_tb_point_cnt   <= dacx_tb_point_cnt + 1'b1;
-                    current_state       <= 2;
-                end
-                else begin
+                if (s2_write_cnt >= 2'd2) begin
                     dacx_tb_point_cnt   <= 0;
                     s2_write_cnt        <= 2'd0;
-                    current_state       <= 14;
+                    laser_recovery_eth_cnt <= 32'd0;
+                    if (laser_recovery_need_ack)
+                        current_state   <= 17;
+                    else
+                        current_state   <= 18;
+                    laser_recovery_need_ack <= 1'b0;
+                end
+                else begin
+                    current_state       <= 2;
                 end
             end
             else begin
@@ -475,11 +511,13 @@ begin
                         para_config_wr_en   <= 1'b1;
                         DAX_DATA            <= dax_level[63:48];
                         DAY_DATA            <= day_level[63:48];
+                        laser_tail_end_marker <= (dax_fall_cnt == dax_fall_time - 1'b1);
                         s13_wait_cnt        <= s13_wait_cnt + 1'b1;
                         current_state       <= 13;
                     end else begin
                         // 第 2 拍：等待，不写
                         para_config_wr_en   <= 1'b0;
+                        laser_tail_end_marker <= 1'b0;
                         s13_wait_cnt        <= 0;
                         if(dax_fall_cnt < dax_fall_time - 1) begin
                             current_state   <= 12;
@@ -487,6 +525,7 @@ begin
                         end else begin
                             current_state   <= 5;
                             dax_fall_cnt    <= 0;
+                            laser_recovery_need_ack <= 1'b1;
                         end
                     end
                 end else begin
@@ -659,12 +698,50 @@ begin
             end
         end
 
+        // State 17/18 are intentionally placed before State 15 in source.
+        // They are reachable only from laser-mode State 2 and do not alter
+        // normal or ultrafast control flow.
+
+        // The legacy State 15 documentation block follows.  Its state label
+        // is placed after States 17/18 below to minimize source movement.
         // State 15: 激光模式专用——scan_delay 倒计时。
         //
         // 行为：
         //   - 不写 FIFO
         //   - 倒计时 scan_delay_time 个 eth_clk 拍（8ns 步进）
         //   - scan_delay_time=0 时立即跳到 State 16
+        // State 17 waits for the final flyback word to reach the physical DAC output.
+        17:
+        begin
+            para_config_wr_en       <= 1'b0;
+            laser_tail_end_marker   <= 1'b0;
+            if (laser_tail_done_e2 != laser_tail_done_seen) begin
+                laser_tail_done_seen    <= laser_tail_done_e2;
+                laser_recovery_eth_cnt  <= 32'd0;
+                current_state           <= 18;
+            end
+        end
+
+        // State 18 starts the configured recovery only after the DAC acknowledgement.
+        18:
+        begin
+            para_config_wr_en       <= 1'b0;
+            laser_tail_end_marker   <= 1'b0;
+            if (laser_recovery_eth_point_reg == 0) begin
+                laser_recovery_eth_cnt <= 32'd0;
+                current_state       <= 14;
+            end
+            else if (laser_recovery_eth_cnt < laser_recovery_eth_point_reg - 1'b1) begin
+                laser_recovery_eth_cnt <= laser_recovery_eth_cnt + 1'b1;
+                current_state       <= 18;
+            end
+            else begin
+                laser_recovery_eth_cnt <= 32'd0;
+                current_state       <= 14;
+            end
+        end
+
+        // State 15: laser scan-delay implementation (documented above).
         15:
         begin
             para_config_wr_en       <= 1'b0;
@@ -747,6 +824,10 @@ begin
             scan_delay_cnt      <= 16'd0;
             laser_toggle        <= 1'b0;
             s2_write_cnt        <= 2'd0;
+            laser_recovery_eth_cnt <= 32'd0;
+            laser_recovery_need_ack <= 1'b0;
+            laser_tail_done_seen <= laser_tail_done_e2;
+            laser_tail_end_marker <= 1'b0;
         end
         endcase
 end
