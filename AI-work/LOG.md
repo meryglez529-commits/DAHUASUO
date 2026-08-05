@@ -1,5 +1,7 @@
 # AI-work Log
 
+> 2026-08-05 | DL1_UNIT_002 laser-camera repair plan: Created a corrective work package for the confirmed laser FIFO marker-alignment defect. The proposed minimal repair aligns FIFO[34]/[33] with the registered DAX/DAY and `wr_en` pipeline in State16, retains the DAC-domain line state machine, FIFO/IP/XDC/registers and normal/ultrafast behavior, and defines simulation/ILA/scope gates. No RTL, bitstream, or board configuration was changed.
+
 每次 skill 调用或重要改动追加一行。最新的写在最上面。
 
 格式：`YYYY-MM-DD HH:MM | mode | 简述`
