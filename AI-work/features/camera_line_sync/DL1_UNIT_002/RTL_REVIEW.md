@@ -1,9 +1,9 @@
-# DL1_UNIT_002：RTL 变更审查（实施前）
+# DL1_UNIT_002：RTL 变更审查（已完成）
 
 | 文件 | 改动原因 | 拟改内容 | 必须审查的风险 | 当前状态 |
 |---|---|---|---|---|
-| `parameter_dacdata_gen.v` | 激光 FIFO 行首/行尾 marker 与实际写 word 错位 | 已去除 laser 专用组合 bit33/34 旁路；State16 用既有 `sync_pixel_tri2/1` 寄存首末标记并直接打包 | 非阻塞赋值流水级理解错误、`dac_sample=1` 同时首尾、普通/超快意外改变 | 仿真/实现通过，待板级 ILA |
-| `dac_output.v` | 一次重新实现时需要完整观察修复效果 | 已把现有 16-bit ILA probe2 改接为 `{mode, active, bit34, bit33}` 调试总线 | 不得改 `camera_line_active/end_pending` 功能逻辑，不得改 FIFO 读时序 | 仿真/实现通过，仅 ILA 连接 |
+| `parameter_dacdata_gen.v` | 激光 FIFO 行首/行尾 marker 与实际写 word 错位 | 已去除 laser 专用组合 bit33/34 旁路；State16 用既有 `sync_pixel_tri2/1` 寄存首末标记并直接打包 | 非阻塞赋值流水级理解错误、`dac_sample=1` 同时首尾、普通/超快意外改变 | 仿真、实现和板级 ILA 通过 |
+| `dac_output.v` | 一次重新实现时需要完整观察修复效果 | 已把现有 16-bit ILA probe2 改接为 `{mode, active, bit34, bit33}` 调试总线 | 不得改 `camera_line_active/end_pending` 功能逻辑，不得改 FIFO 读时序 | 板级 ILA 证明 marker、相机状态及 DAX 对齐 |
 | `tb_dl1_unit_002_marker_alignment.v` | 需直接验证写侧真实 word，而非仅向 DAC TB 人工塞 word | 已新增真实生成器/写入记录、DAC 域及普通/超快回归 | 必须同时验证首、尾、激光间隙和三种 `dac_sample` 边界 | PASS |
 
 ## 功能不变量
@@ -28,4 +28,10 @@
 - 同一个 testbench 通过注册输出 FIFO 模型连接真实 `dac_output`：相机低窗口从第一个 DAX
   像素开始，覆盖全部像素 word，并在 tail/non-pixel word 开始时释放。
 - 普通与超快的 FIFO[32] 相机窗口和 ultra-fast legacy sync2 回归通过。
-- `write_bitstream` 已完成，正式时序 WNS=+0.202 ns、WHS=+0.048 ns，所有用户时序约束满足；尚未替代板级 ILA 证据。
+- `write_bitstream` 已完成，正式时序 WNS=+0.202 ns、WHS=+0.048 ns，所有用户时序约束满足。
+
+## 板级 ILA 审查结论（2026-08-05）
+
+- 激光模式 16×16、`dac_sample=50` 的真实写侧完整记录为 X=0…15，未见 FIFO 反压或少点。
+- DAC 域首 marker 与 `0x1999`、末 marker 与 `0xE664` 分别处于同一 FIFO 读 word；`camera_line_sync` 在首 marker 后的 DAC 边沿拉低，在末点后的首个回扫码 `0xE260` 装载时拉高。因此低有效窗口没有漏掉首点或末点，也没有覆盖回扫。
+- ILA CSV 为时钟边沿前采样：marker 样本本身仍显示变更前的相机状态，下一样本显示更新后的状态；该寄存器时序与 RTL 一致，不是额外错位。

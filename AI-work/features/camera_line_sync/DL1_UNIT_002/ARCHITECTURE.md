@@ -1,4 +1,4 @@
-# DL1_UNIT_002：激光相机行同步错位修复架构（待实施）
+# DL1_UNIT_002：激光相机行同步错位修复架构（已验证）
 
 ## 1. 结论
 
@@ -47,7 +47,7 @@ sync_pixel_tri1 <= (dacx_tk_point_cnt == dacx_tk_point - 1'b1) &&
                    (dac_sample_cnt == dac_sample - 1'b1);
 ```
 
-上述代码是实施意图，不是已下发修改。前提沿用当前合法参数约束：`dacx_tk_point >= 1`、`dac_sample >= 1`。实施时需保持非激光状态对两个寄存器的原有赋值不变，并将该条件写成与现有位宽一致的形式。
+上述代码已在 `parameter_dacdata_gen.v` 实施并通过仿真、实现和板级 ILA 验证。前提沿用当前合法参数约束：`dacx_tk_point >= 1`、`dac_sample >= 1`；非激光状态对两个寄存器的原有赋值保持不变，比较常量也保持与现有信号位宽一致。
 
 ### 3.3 DAC 域保持不动
 

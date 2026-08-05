@@ -1,6 +1,6 @@
 # DL1_UNIT_002：实施记录
 
-## 当前状态：RTL、仿真与实现通过，待板级 ILA
+## 当前状态：RTL、仿真、实现和激光板级 ILA 通过
 
 截至 2026-08-05，已按批准方案修改 `parameter_dacdata_gen.v`：激光 FIFO[34]/[33] 不再由
 State16 计数器组合旁路，而是由 `sync_pixel_tri2/1` 与 DAX/DAY/`para_config_wr_en` 同拍
@@ -61,11 +61,18 @@ Vivado batch 仿真 PASS，仿真时间 3630 ns；证据为 `out/sim/result.txt`
 
 明确不改：FIFO `.xci`、ILA `.xci` 端口配置、XDC、顶层 IO、主机寄存器和 State14。
 
+## 板级 ILA 证据（2026-08-05）
+
+- 使用匹配的 `ETH_TOP_camera_marker_fix.bit/.ltx`，由工程上位机下发并读回确认：16×16、`dac_sample=50`、行首恢复 5 µs、扫描延时 800 ns；DL5 原始计数为扫描延时/束闸延时/束闸宽度/采集延时/采集宽度=`100/20/80/30/60`。
+- `eth_full_line` 捕获到 16 个完整的 State16 写侧点（X=0…15），每点 50 个 `eth_clk` 周期，`prog_full=0`；相邻激光上升沿相隔 250 个 `eth_clk` 周期，即 2 µs。
+- `dac_camera_alignment` 捕获到首 marker（FIFO[34]）与首有效 DAX=`0x1999` 同一读 word，末 marker（FIFO[33]）与末有效 DAX=`0xE664` 同一读 word。相机低电平覆盖至末点后，回扫首码 `0xE260` 装载时恢复高电平；详细逐样本记录见 `BOARD_VERIFICATION.md`。
+- `acq_timing` 捕获到每次激光边沿后 120 个 `ui_clk` 周期（600 ns）延迟、240 个 `ui_clk` 周期（1.2 µs）采集高窗，与 `0x0209=30`、`0x020A=60` 一致。
+
 ## 实施前阻断条件
 
 - 未先通过仿真，禁止运行综合/实现。
 - 实现有负时序、DRC ERROR 或 CRITICAL WARNING，禁止生成交付 bitstream（本次已通过）。
-- 上板只看到相机低电平而没有验证 bit34/bit33 与 DAX 的相对位置，禁止宣称问题已修复。
+- 板级 ILA 已验证 bit34/bit33 与 DAX 的相对位置；后续示波器测试仍用于确认 TRIGGER_H 的实际电平和接口连接。
 
 ## 已有参考与证据
 

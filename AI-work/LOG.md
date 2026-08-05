@@ -1,5 +1,7 @@
 # AI-work Log
 
+> 2026-08-05 | DL1_UNIT_002 board ILA verification: Programmed repair bitstream, applied/read back the proven 16×16 laser profile (`dac_sample=50`, DL5=`100/20/80/30/60`) and started scan. Guarded ILA captured full write-side line, DAC marker/camera alignment and acquisition timing with zero D-root spill. FIFO[34]/[33] aligned with first/last DAX words; camera low window covered the full valid line and released on the first return code. Acquisition delay/width measured 600 ns/1.2 µs as configured. Evidence: `features/camera_line_sync/DL1_UNIT_002/BOARD_VERIFICATION.md`.
+
 > 2026-08-05 | DL1_UNIT_002 implementation: After the focused RTL simulation PASS, rebuilt without changing FIFO/IP/XCI/XDC. `write_bitstream` completed successfully; formal timing WNS=+0.202 ns/WHS=+0.048 ns and all user constraints met. Archived the matched `ETH_TOP_camera_marker_fix.bit/.ltx`, reports, and guarded ILA capture script. Board-level laser capture remains pending user programming and start.
 
 > 2026-08-05 | DL1_UNIT_002 RTL and simulation: Implemented the laser FIFO[34]/[33] marker-register alignment in `parameter_dacdata_gen.v`. The focused real-generator/DAC-output simulation passed at 3630 ns for laser `dac_sample=1/4/50` plus normal/ultrafast regression. After PASS, reused the existing-width DAC ILA probe2 for `{laser_mode, camera_active, FIFO[34], FIFO[33]}`; no FIFO/IP/XDC/register/board change. Implementation and guarded board capture remain pending.
