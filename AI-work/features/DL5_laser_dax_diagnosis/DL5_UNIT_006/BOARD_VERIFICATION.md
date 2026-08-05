@@ -9,7 +9,7 @@
 3. 首次 16x16 冒烟配置 `dac_sample=4` 时，末点输出 4 个 20 ns word，即 80 ns；它不是“少写 sample”。随后将 `0x0002` 安全改为 `50` 后重抓：`x_index=0..15` 的每次 State 16 都完整运行 50 拍，DAC 侧末点 `0xE664` 连续保持 50 个 DAC 时钟（1.000 us）才进入回扫，已实测闭环上位机的 1 us 驻点合同。
 4. `dac_sample` 就是上位机的 DAC 驻点 word 数。历史设计记录给出写侧 125 MHz、读侧 50 MHz；每个像素完整写入 `dac_sample` 后的净积压约为 `0.6 × dac_sample` word，排空时间为 `dac_sample × 12 ns`。对 `dac_sample=50` 为约 600 ns，结合当前 800 ns 扫描延时与 2 us laser 周期，仍有约 200 ns 余量。因此，写满 1 us 的 sample 不会导致下一像素因 FIFO 排空而产生高延时。
 5. 回扫至 `0x1999` 后下一 X 增量在约 6.74 us 后出现；该间隔包含线首恢复、scan delay、等待下一次可接受 laser 及 FIFO 输出，不能仅凭该测量判定 5 us 的恢复参数失效。
-6. `camera_line_sync` 在两次 DAC ILA 的 81.92 us 窗口内始终为高，即使 FIFO bit33 行尾标记已两次出现；低有效相机行同步当前不符合需求。根因已定位为激光模式 FIFO 行首标记 bit34 与实际写使能错开一拍，致使 `camera_line_active` 从未置位；尚未改 RTL。
+6. 普通模式的低有效 `camera_line_sync` 已在板级 ILA 验证正确：完整 16 像素扫描线低 16.000 us，回扫加行首恢复高 6.000 us。激光模式下该信号却始终为高；根因已定位为激光模式 FIFO 行首标记 bit34 与实际写使能错开一拍，致使 `camera_line_active` 从未置位；尚未改 RTL。
 
 ## 配置核对
 
@@ -37,6 +37,8 @@
 - `dac_tail_camera_TRIG_20260805_144245.csv`
 - `acq_timing_TRIG_20260805_144245.csv`
 - `dwell50_camera_20260805_144242.log`
+- `dac_tail_camera_NOW_20260805_145755.csv`
+- `normal_camera_20260805_145753.log`
 
 ### 写侧整行
 
@@ -71,6 +73,16 @@ DAC ILA 以 bit33 行尾标记触发（位置 3072）。相对触发时刻，倒
 两次 DAC ILA 中 `camera_line_sync` 的 4096 个 50 MHz 样本均为高；第二次的 FIFO bit33 行尾标记位于样本 1272、3072。根因可由 ILA 与 RTL 时序共同确定：`parameter_dacdata_gen` 以 `current_state==16 && dac_sample_cnt==0` 组合生成 bit34 行首标记，但 `para_config_wr_en` 是进入 State 16 后才寄存器置 1。实际 ILA 显示 x=0 时样本 101 为 `State16/cnt=0/wr_en=0`，样本 102 已为 `State16/cnt=1/wr_en=1`；故第一笔真正 FIFO 写入未携带 bit34。DAC 域只以 bit34 置位 `camera_line_active`，而 bit33 只请求结束，导致 `camera_line_sync=~camera_line_active` 始终为高。该结论排除了板外 TRIGGER_H 接线问题。
 
 此外，当前 bit33 出现在末点仍剩 2 个 DAC 时钟时（第二条线 marker=3072、末点 `0xE664` 至 3074 才结束）。因此修复时应把 bit34/bit33 与**实际 FIFO 写入 word**对齐：bit34 标在第一有效 word，bit33 标在最后有效 word；不能只把 bit34 延后一拍，否则会留下行尾提前释放问题。下一次诊断 bit 还应同时采集 `laser_mode_en_dac`、FIFO[34] 与 `camera_line_active`，作为修复验收探针。
+
+### 普通模式对照（`dac_sample=50`）
+
+为隔离相机同步路径，使用上位机 `mode normal apply` 将 `0x020B=0`、`0x0202=0`，并保持 16×16、`dac_sample=50`、行首恢复 5 us、回扫 1 us、`0x0009=0x00003211`。普通模式没有激光行尾事件，故使用完整快照 `dac_tail_camera_NOW_20260805_145755.csv`。
+
+- `camera_line_sync=0` 的完整行窗口为样本 `1000..1799`、`2100..2899`、`3200..3999`，每段 800 个 50 MHz DAC 时钟，即 **16.000 us**；期间 DAX 从 `0x1999` 经 16 个像素台阶到 `0xE664`，每个台阶 50 个 DAC 时钟（1 us）。
+- 每行后的 `camera_line_sync=1` 窗口为 300 个 DAC 时钟，即 **6.000 us**，恰覆盖 1 us X 回扫和 5 us 行首恢复。快照起点位于一条线中部，故首段低窗口仅余 14 us，不影响结论。
+- 所有样本 `para_config_prog_empty=0`；相机同步仍正确在有效 X 像素区低、回扫/恢复区高，证明它跟随正常模式 FIFO[32] 有效像素语义，而非由 FIFO 空满偶然决定。
+
+因此普通模式端到端通过，板外 `TRIGGER_H`、顶层接线和 DAC 域输出寄存器均可排除；相机同步缺陷仅存在于激光模式的 FIFO[34]/[33] 标记生成时序。
 
 ## 未修改项
 

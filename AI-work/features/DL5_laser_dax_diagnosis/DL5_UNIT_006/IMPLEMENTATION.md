@@ -16,6 +16,8 @@
 
 已完成资源优化诊断 ILA bitstream 及板级抓取：WNS=+0.105 ns、WHS=+0.051 ns、BRAM=414.5/445（93.15%，相对 404.5 基线增加约 2.5%），DRC 0 error/0 critical warning。最终 16x16 条件触发证据已导出至 `out/ila/`。先以 `dac_sample=4` 解释了 80 ns 末点，随后仅改 `0x0002=50` 重抓，确认 16 个点均完整驻留 1.000 us，FIFO 没有高延时积压；未改扫描 RTL。相机同步仍未拉低，已定位为激光行首 FIFO bit34 与实际写使能错开一拍，详见 `BOARD_VERIFICATION.md`；修复待单独 RTL 变更闭环。
 
+普通模式对照已完成：以同一 16×16/`dac_sample=50` 参数关闭 `laser_mode_en` 与 `ultrafast_mode` 后，DAC ILA 在每条完整线观察到 16.000 us 的低有效 `camera_line_sync`，并在回扫加恢复期间正确返回高电平。因此相机同步的顶层接线和普通模式路径通过，激光模式 marker 时序问题是唯一待修复项。
+
 ## 实施顺序
 
 1. 将现有 `ila_1`/`ila_2` 的采样深度设为 4096；
@@ -45,6 +47,7 @@
 - 可下载匹配对：`out/bitstream/ETH_TOP_dl5_dax_diag.bit`、`out/bitstream/ETH_TOP_dl5_dax_diag.ltx`。
 - 上板抓取：`ila/capture_full_line_and_tail.tcl`，必须通过 `AI-work/scripts/run_vivado_ila_guarded.ps1` 运行；采集 ILA 的深度为 1024，触发位置为 512。
 - 2026-08-05 板级结论与逐样本证据：`BOARD_VERIFICATION.md`；首次条件抓取 CSV 时间戳为 `20260805_135750`，`dac_sample=50` 复测时间戳为 `20260805_144245`。
+- 普通模式相机同步快照：`out/ila/dac_tail_camera_NOW_20260805_145755.csv`，受控执行日志为 `out/ila/normal_camera_20260805_145753.log`。
 
 ## 产物边界
 
