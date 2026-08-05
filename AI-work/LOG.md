@@ -1,5 +1,9 @@
 # AI-work Log
 
+> 2026-08-05 | DL1_UNIT_002 implementation: After the focused RTL simulation PASS, rebuilt without changing FIFO/IP/XCI/XDC. `write_bitstream` completed successfully; formal timing WNS=+0.202 ns/WHS=+0.048 ns and all user constraints met. Archived the matched `ETH_TOP_camera_marker_fix.bit/.ltx`, reports, and guarded ILA capture script. Board-level laser capture remains pending user programming and start.
+
+> 2026-08-05 | DL1_UNIT_002 RTL and simulation: Implemented the laser FIFO[34]/[33] marker-register alignment in `parameter_dacdata_gen.v`. The focused real-generator/DAC-output simulation passed at 3630 ns for laser `dac_sample=1/4/50` plus normal/ultrafast regression. After PASS, reused the existing-width DAC ILA probe2 for `{laser_mode, camera_active, FIFO[34], FIFO[33]}`; no FIFO/IP/XDC/register/board change. Implementation and guarded board capture remain pending.
+
 > 2026-08-05 | DL1_UNIT_002 laser-camera repair plan: Created a corrective work package for the confirmed laser FIFO marker-alignment defect. The proposed minimal repair aligns FIFO[34]/[33] with the registered DAX/DAY and `wr_en` pipeline in State16, retains the DAC-domain line state machine, FIFO/IP/XDC/registers and normal/ultrafast behavior, and defines simulation/ILA/scope gates. No RTL, bitstream, or board configuration was changed.
 
 每次 skill 调用或重要改动追加一行。最新的写在最上面。

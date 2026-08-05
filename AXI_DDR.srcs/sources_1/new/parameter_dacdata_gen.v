@@ -129,14 +129,11 @@ reg [15:0]  DAX_DATA;            // fifo[31:16]
 reg [15:0]  DAY_DATA;            // fifo[15:0]
 // 激光模式下 FIFO[32] 保持为 0，ADC 触发仍走独立 toggle-FF 桥。
 // FIFO[34]/[33] 复用为相机行同步的行首/行尾标记，不改变 FIFO 宽度。
-wire        laser_line_start = laser_mode_en && (current_state == 16) &&
-                               (dacx_tk_point_cnt == 16'd0) && (dac_sample_cnt == 32'd0);
-wire        laser_line_end   = laser_mode_en && (current_state == 16) &&
-                               (dacx_tk_point_cnt == dacx_tk_point - 1'b1) &&
-                               (dac_sample_cnt == dac_sample - 1'b1);
+// bit33/34 必须和 DAX/DAY、para_config_wr_en 使用同一寄存器流水级；
+// 不能按当前 State16 计数器组合生成，否则会与实际 FIFO 写入错开一拍。
 wire        fifo_bit32 = laser_mode_en ? 1'b0 : adc_tri;
-wire        fifo_bit33 = laser_mode_en ? laser_line_end : sync_pixel_tri1;
-wire        fifo_bit34 = laser_mode_en ? laser_line_start : sync_pixel_tri2;
+wire        fifo_bit33 = sync_pixel_tri1;
+wire        fifo_bit34 = sync_pixel_tri2;
 wire        line_start_allowed = laser_mode_en || (clk_sel == 1'b0) || TRIGGER_IN;
 assign      para_config_data = {fifo_bit34, fifo_bit33, fifo_bit32, DAX_DATA, DAY_DATA};
 
@@ -695,8 +692,12 @@ begin
             if (para_config_prog_full == 0 && para_config_wr_rst_busy == 0) begin
                 para_config_wr_en   <= 1'b1;
                 adc_tri             <= 1'b0;
-                sync_pixel_tri1     <= 1'b0;
-                sync_pixel_tri2     <= 1'b0;
+                // 与 DAX/DAY/para_config_wr_en 同拍登记，确保 FIFO[34]/[33]
+                // 分别落在首个和末个实际有效像素 word 上。
+                sync_pixel_tri1     <= (dacx_tk_point_cnt == dacx_tk_point - 1'b1) &&
+                                       (dac_sample_cnt == dac_sample - 1'b1);
+                sync_pixel_tri2     <= (dacx_tk_point_cnt == 16'd0) &&
+                                       (dac_sample_cnt == 32'd0);
                 DAX_DATA            <= dax_level[63:48];
                 DAY_DATA            <= day_level[63:48];
                 if (dac_sample_cnt < dac_sample - 1) begin
