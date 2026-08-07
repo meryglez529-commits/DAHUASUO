@@ -1,6 +1,7 @@
 # AI-work runtime outputs — not source assets
 sim_out/
 reports/
+tmp/
 *.wdb
 *.jou
 *.log
