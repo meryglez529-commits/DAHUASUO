@@ -1,0 +1,12 @@
+# Vivado and documentation binary artifacts must never be line-ending normalized.
+*.pdf -text
+*.dcp -text
+*.bit -text
+*.ltx -text
+*.bin -text
+*.wdb -text
+*.png -text
+*.jpg -text
+*.jpeg -text
+*.zip -text
+*.rar -text
